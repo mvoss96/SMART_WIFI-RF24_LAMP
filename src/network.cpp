@@ -6,12 +6,11 @@
 #include "config.h"
 #include "network.h"
 #include "mqtt.h"
-#include "logging.h"
 
 char chipIdStr[32];
 
 bool wifiStarted = false;
-static unsigned long wifiReconnectTimer = 0;
+static long wifiReconnectTimer = 0;
 
 static WiFiManager wifiManager;
 static WiFiManagerParameter custom_mqtt_server("mqttServer", "MQTT Server", mqttSettings.server, 40);
@@ -56,6 +55,11 @@ void wifiSetup()
 {
     const char *chipID = ChipID::getChipID();
     WiFi.hostname(chipID);
+    WiFi.begin();
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    int txPower = WiFi.getTxPower();
+    Serial.print("TX power: ");
+    Serial.println(txPower);
     mqttInit(); // Initialize MQTT settings and load settings from preferences
 
     // Load MQTT settings into WifiManager
@@ -79,6 +83,13 @@ void wifiSetup()
     wifiManager.setMenu(menu, 3);
     wifiManager.setClass("invert");
     wifiManager.autoConnect();
+    if (WiFi.isConnected())
+    {
+        Serial.print("Connected to ");
+        Serial.print(WiFi.SSID());
+        Serial.print(" with IP ");
+        Serial.println(WiFi.localIP());
+    }
 
     // Start WiFiManager if no WiFi credentials are saved
     if (wifiManager.getWiFiIsSaved())
@@ -120,5 +131,8 @@ void handleWiFiConnection()
 void wifiLoop()
 {
     handleWiFiConnection(); // Handle WiFi connectivity and reconnection
-    handleMQTTConnection(); // Handle MQTT connection and publishing
+    if (getMqttEnabled() && WiFi.status() == WL_CONNECTED)
+    {
+        handleMQTTConnection(); // Handle MQTT connection and publishing
+    }
 }

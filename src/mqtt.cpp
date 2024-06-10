@@ -143,14 +143,14 @@ void setMqttSettings(const char *server, const unsigned int port, const char *us
     strcpy(mqttSettings.username, username);
     strcpy(mqttSettings.password, password);
     strcpy(mqttSettings.topic, topic);
-    LOG_INFO("MQTT settings updated");
+    LOG_INFO("MQTT settings updated\n");
     printMqttConfig();
     saveMqttSettings();
 }
 
 void loadMQTTsettings()
 {
-    LOG_INFO("Loading MQTT settings");
+    LOG_INFO("Loading MQTT settings\n");
     preferences.begin("mqtt_config", false);
     strcpy(mqttSettings.server, preferences.getString("mqttServer", "").c_str());
     mqttSettings.port = preferences.getInt("mqttPort", 1883);

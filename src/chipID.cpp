@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include "chipID.h"
 #include "config.h"
+#include "logging.h"
 
 const char *ChipID::getChipID()
 {
@@ -10,7 +11,7 @@ const char *ChipID::getChipID()
     if (!initialized)
     {
         String macAddress = WiFi.macAddress();
-        Serial.printf("ESP32 Chip ID = %s\n", macAddress.c_str());
+        LOG_INFO("ESP32 Chip ID = %s\n", macAddress.c_str());
         macAddress.replace(":", "");
         char modifiedMac[13];
         macAddress.substring(6, 17).toCharArray(modifiedMac, sizeof(modifiedMac));
