@@ -55,8 +55,8 @@ void wifiSetup()
 {
     const char *chipID = ChipID::getChipID();
     WiFi.hostname(chipID);
-    WiFi.begin();
-    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    WiFi.begin(); // Start WiFi connection
+    WiFi.setTxPower(WIFI_POWER_8_5dBm); //Reduce WIFI poweer for copmpatibility with some devices
     int txPower = WiFi.getTxPower();
     Serial.print("TX power: ");
     Serial.println(txPower);
@@ -82,15 +82,7 @@ void wifiSetup()
     const char *menu[] = {"wifi", "param", "info"};
     wifiManager.setMenu(menu, 3);
     wifiManager.setClass("invert");
-    wifiManager.autoConnect();
-    if (WiFi.isConnected())
-    {
-        Serial.print("Connected to ");
-        Serial.print(WiFi.SSID());
-        Serial.print(" with IP ");
-        Serial.println(WiFi.localIP());
-    }
-
+    delay(1000); // Wait for WiFi to initialize
     // Start WiFiManager if no WiFi credentials are saved
     if (wifiManager.getWiFiIsSaved())
     {
@@ -111,6 +103,10 @@ void handleWiFiConnection()
     // Check and handle WiFi connection status
     if (WiFi.status() == WL_CONNECTED && !wifiStarted)
     {
+        Serial.print("Connected to ");
+        Serial.print(WiFi.SSID());
+        Serial.print(" with IP ");
+        Serial.println(WiFi.localIP());
         wifiManager.startWebPortal(); // Start the WiFi portal if WiFi is connected and not yet started
         wifiStarted = true;           // Mark the WiFi as started
     }
