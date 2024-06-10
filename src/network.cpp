@@ -1,18 +1,17 @@
 #include <Arduino.h>
 #include <WiFiManager.h>
-
-#include <ArduinoJson.h>
 #include <WiFi.h>
-#include <Preferences.h>
+
 #include "chipID.h"
 #include "config.h"
 #include "network.h"
 #include "mqtt.h"
+#include "logging.h"
 
 char chipIdStr[32];
 
 bool wifiStarted = false;
-static long wifiReconnectTimer = 0;
+static unsigned long wifiReconnectTimer = 0;
 
 static WiFiManager wifiManager;
 static WiFiManagerParameter custom_mqtt_server("mqttServer", "MQTT Server", mqttSettings.server, 40);
@@ -58,7 +57,7 @@ void wifiSetup()
     const char *chipID = ChipID::getChipID();
     WiFi.hostname(chipID);
     mqttInit(); // Initialize MQTT settings and load settings from preferences
-    
+
     // Load MQTT settings into WifiManager
     custom_mqtt_server.setValue(mqttSettings.server, 40);
     custom_mqtt_port.setValue(String(mqttSettings.port).c_str(), 6);
@@ -76,7 +75,7 @@ void wifiSetup()
     wifiManager.setConfigPortalBlocking(false);
     wifiManager.setSaveParamsCallback(saveParamsCallback);
     wifiManager.setEnableConfigPortal(false);
-    const char* menu[] = {"wifi","param","info"};
+    const char *menu[] = {"wifi", "param", "info"};
     wifiManager.setMenu(menu, 3);
     wifiManager.setClass("invert");
     wifiManager.autoConnect();
@@ -115,14 +114,11 @@ void handleWiFiConnection()
         wifiManager.startWebPortal(); //  Make sure the config portal stays active
     }
 
-    wifiManager.process();  // Process WiFiManager tasks
+    wifiManager.process(); // Process WiFiManager tasks
 }
 
 void wifiLoop()
 {
     handleWiFiConnection(); // Handle WiFi connectivity and reconnection
-    if (getMqttEnabled() && WiFi.status() == WL_CONNECTED)
-    {
-        handleMQTTConnection(); // Handle MQTT connection and publishing
-    }
+    handleMQTTConnection(); // Handle MQTT connection and publishing
 }
