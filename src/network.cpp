@@ -51,15 +51,13 @@ void saveParamsCallback()
     setMqttSettings(custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()), custom_mqtt_username.getValue(), custom_mqtt_password.getValue(), custom_mqtt_topic.getValue());
 }
 
-void wifiSetup()
+void wifiInit()
 {
     const char *chipID = ChipID::getChipID();
     WiFi.hostname(chipID);
     WiFi.begin(); // Start WiFi connection
     WiFi.setTxPower(WIFI_POWER_8_5dBm); //Reduce WIFI poweer for copmpatibility with some devices
     int txPower = WiFi.getTxPower();
-    Serial.print("TX power: ");
-    Serial.println(txPower);
     mqttInit(); // Initialize MQTT settings and load settings from preferences
 
     // Load MQTT settings into WifiManager

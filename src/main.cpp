@@ -2,6 +2,7 @@
 
 #include "network.h"
 #include "ledControl.h"
+#include "radio.h"
 
 void setup()
 {
@@ -11,12 +12,12 @@ void setup()
   delay(100); // Wait for the serial connection to be establised
   Serial.print("\n\ncompile time: ");
   Serial.println(__DATE__ " " __TIME__);
-
-  wifiSetup(); // Initialize WiFi and MQTT settings
+  radioInit(); // Initialize the RF radio
+  wifiInit(); // Initialize WiFi and MQTT settings
 }
 
 void loop()
 {
-
   wifiLoop();
+  radioLoop();
 }

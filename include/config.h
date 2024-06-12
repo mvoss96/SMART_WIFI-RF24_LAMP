@@ -40,3 +40,8 @@ inline const char *getLEDModeStr(LED_MODES mode)
 #define LED3_PIN -1                          // Pin for LED3 set to -1 if not used
 #define LED4_PIN -1                          // Pin for LED4 set to -1 if not used
 #define LED5_PIN -1                          // Pin for LED5 set to -1 if not used
+
+#define RF24RADIO_ENABLED true               // Enable or disable RF24 radio (true or false)
+#define PIN_RADIO_CE 7                       // Radio CE pin
+#define PIN_RADIO_CSN 8                      // Radio CSN pin
+#define PIN_RADIO_IRQ 9                      // Radio IRQ pin  

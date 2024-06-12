@@ -1,4 +1,4 @@
 #pragma once
 
-void wifiSetup();
+void wifiInit();
 void wifiLoop();
