@@ -1,26 +1,55 @@
 // functions to communicate with the nrf24l01 radio module
-
 #include <Arduino.h>
+#include <Preferences.h>
 #include <RF24.h>
 
 #include "radio.h"
 #include "config.h"
 #include "logging.h"
 
+static RF24 radio(PIN_RADIO_CE, PIN_RADIO_CSN);
+static Preferences preferences;
+
 static bool radioInitialized = false;
 static bool _radioInterruptReceived = false;
-static RF24 radio(PIN_RADIO_CE, PIN_RADIO_CSN);
-static uint8_t radioAddress[5] = {'R', 'F', '2', '4', 0}; // The address of the radio module
+static const auto RADIO_DATARATE = RF24_250KBPS;
+
+struct RadioSettings
+{
+    uint8_t channel;
+    uint8_t radioAddress[5];
+};
+
+RadioSettings radioSettings;
 
 static void radioInterrupt()
 {
     _radioInterruptReceived = true;
 }
 
+static void printRadioSettings()
+{
+    LOG_INFO("Radio settings: Channel: %i, Address: %c%c%c%c%i\n",
+             radioSettings.channel, radioSettings.radioAddress[0], radioSettings.radioAddress[1],
+             radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
+}
+
+static void loadRadioSettings()
+{
+    LOG_INFO("Loading Radio settings\n");
+    preferences.begin("radio_config", false);
+    radioSettings.channel = preferences.getInt("channel", 100);
+    radioSettings.radioAddress[0] = preferences.getUChar("radioAddress0", 'R');
+    radioSettings.radioAddress[1] = preferences.getUChar("radioAddress1", 'F');
+    radioSettings.radioAddress[2] = preferences.getUChar("radioAddress2", '2');
+    radioSettings.radioAddress[3] = preferences.getUChar("radioAddress3", '4');
+    radioSettings.radioAddress[4] = preferences.getUChar("radioAddress4", 0);
+    preferences.end();
+    printRadioSettings();
+}
+
 void radioInit()
 {
-    uint8_t channel = 100;
-    uint8_t address = 0;
     if (!radio.begin())
     {
         LOG_ERROR("RF24Radio Connection Error!\n");
@@ -32,22 +61,25 @@ void radioInit()
     radio.maskIRQ(true, true, false); // args = "data_sent", "data_fail", "data_ready"
     attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
 
+    // Load the radio settings
+    loadRadioSettings();
+
     // Set the radio address
-    radioAddress[4] = address;
+    // radioAddress[4] = address;
 
-    radio.setChannel(channel);
-    radio.setPALevel(RF24_PA_LOW);          // Adjust power level
-    radio.setAddressWidth(5);               // Set address width
-    radio.setCRCLength(RF24_CRC_16);        // Set CRC length
-    radio.setRetries(5, 15);                // Set the number of retries and delay between retries
-    radio.enableDynamicPayloads();          // Enable dynamic payloads
-    radio.enableAckPayload();               // Enable ack payloads
-    radio.setDataRate(RF24_250KBPS);        // Set data rate
-    radio.openReadingPipe(1, radioAddress); // Open a reading pipe on address, using pipe 1 as an example
-    radio.openWritingPipe(radioAddress);    // Set the writing pipe address
-    radio.startListening();                 // Start listening
+    radio.setChannel(radioSettings.channel);              // Set the channel
+    radio.setPALevel(RF24_PA_LOW);                        // Adjust power level
+    radio.setAddressWidth(5);                             // Set address width
+    radio.setCRCLength(RF24_CRC_16);                      // Set CRC length
+    radio.setRetries(5, 15);                              // Set the number of retries and delay between retries
+    radio.enableDynamicPayloads();                        // Enable dynamic payloads
+    radio.enableAckPayload();                             // Enable ack payloads
+    radio.setDataRate(RADIO_DATARATE);                    // Set data rate
+    radio.openReadingPipe(1, radioSettings.radioAddress); // Open a reading pipe on address, using pipe 1 as an example
+    radio.openWritingPipe(radioSettings.radioAddress);    // Set the writing pipe address
+    radio.startListening();                               // Start listening
 
-    LOG_INFO("RF24Radio initialized! Channel: %i, Address: %i\n", channel, address);
+    LOG_INFO("RF24Radio initialized!\n");
     radioInitialized = true;
 }
 
