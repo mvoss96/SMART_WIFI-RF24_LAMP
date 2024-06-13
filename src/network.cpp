@@ -7,6 +7,7 @@
 #include "network.h"
 #include "mqtt.h"
 #include "radio.h"
+#include "logging.h"
 
 char chipIdStr[32];
 
@@ -94,13 +95,13 @@ void wifiInit()
     // Start WiFiManager if no WiFi credentials are saved
     if (wifiManager.getWiFiIsSaved())
     {
-        Serial.println("Connecting to WiFi");
+        LOG_INFO("Connecting to WiFi\n");
         wifiManager.setEnableConfigPortal(false); // Disable config portal so that it doesn't start when connection fails
         wifiManager.autoConnect();
     }
     else
     {
-        Serial.println("Starting AP");
+        LOG_INFO("Starting AP\n");
         wifiManager.setEnableConfigPortal(true);
         wifiManager.startConfigPortal(chipID);
     }
@@ -111,10 +112,7 @@ void handleWiFiConnection()
     // Check and handle WiFi connection status
     if (WiFi.status() == WL_CONNECTED && !wifiStarted)
     {
-        Serial.print("Connected to ");
-        Serial.print(WiFi.SSID());
-        Serial.print(" with IP ");
-        Serial.println(WiFi.localIP());
+        LOG_INFO("Connected to %s with IP %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
         wifiManager.startWebPortal(); // Start the WiFi portal if WiFi is connected and not yet started
         wifiStarted = true;           // Mark the WiFi as started
     }

@@ -13,7 +13,5 @@ extern MQTT_Settings mqttSettings;
 
 bool getMqttEnabled();
 void handleMQTTConnection();
-void setMqttEnabled(bool enabled);
 void mqttInit();
-void mqttConnect();
 void setMqttSettings(const char *server, const unsigned int port, const char *username, const char *password, const char *topic);

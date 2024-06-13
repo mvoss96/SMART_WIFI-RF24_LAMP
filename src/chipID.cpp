@@ -11,11 +11,10 @@ const char *ChipID::getChipID()
 {
     if (!initialized)
     {
-        String macAddress = WiFi.macAddress();
-        LOG_INFO("ESP32 Chip ID = %s\n", macAddress.c_str());
-        macAddress.replace(":", "");
-        macAddress.substring(6, 17).toCharArray(modifiedMac, sizeof(modifiedMac));
-        sprintf(chipIdStr, "%s-%s", DEVICENAME, modifiedMac);
+        uint8_t mac[6];
+        WiFi.macAddress(mac);
+        snprintf(modifiedMac, sizeof(modifiedMac), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+        snprintf(chipIdStr, sizeof(chipIdStr), "%s-%s", DEVICENAME, modifiedMac);
         initialized = true;
     }
 

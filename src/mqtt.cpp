@@ -12,11 +12,11 @@
 MQTT_Settings mqttSettings;
 static unsigned long mqttReconnectTimer = ULONG_MAX;
 
-WiFiClient espClient;
-PubSubClient mqttClient(espClient);
+static WiFiClient espClient;
+static PubSubClient mqttClient(espClient);
 static Preferences preferences;
 
-void mqttHomeAssistandDiscovery()
+static void mqttHomeAssistandDiscovery()
 {
     JsonDocument doc;
     JsonArray colorModes = doc["supported_color_modes"].to<JsonArray>();
@@ -47,7 +47,7 @@ void mqttHomeAssistandDiscovery()
     doc["brightness"] = true;
     doc["brightness_scale"] = 1023,
     doc["command_topic"] = String(mqttSettings.topic) + "/set";
-    
+
     doc["device"]["manufacturer"] = "MarcusVoss";
     doc["device"]["model"] = MODELNAME;
     doc["device"]["name"] = DEVICENAME;
@@ -56,7 +56,6 @@ void mqttHomeAssistandDiscovery()
     doc["schema"] = "json";
     doc["state_topic"] = String(mqttSettings.topic) + "/light";
     doc["unique_id"] = ChipID::getChipID();
-    
 
     String payload;
     serializeJson(doc, payload);
@@ -72,7 +71,19 @@ void mqttHomeAssistandDiscovery()
     }
 }
 
-void mqttConnect()
+IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int length)
+{
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("] ");
+    for (int i = 0; i < length; i++)
+    {
+        Serial.print((char)payload[i]);
+    }
+    Serial.println();
+}
+
+static void mqttConnect()
 {
     // Make sure the connection is disconnected
     if (mqttClient.connected())
@@ -82,10 +93,12 @@ void mqttConnect()
     }
 
     mqttClient.setServer(mqttSettings.server, mqttSettings.port);
+    mqttClient.setCallback(mqttCallback);
     delay(100);
     if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password))
     {
         mqttClient.setBufferSize(1024);
+        mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str());
         LOG_INFO("MQTT connected\n");
         mqttHomeAssistandDiscovery();
     }
@@ -95,7 +108,7 @@ void mqttConnect()
     }
 }
 
-void mqttPublish()
+static void mqttPublish()
 {
     // Return if MQTT is not enabled or not connected
     if (!mqttClient.connected())
@@ -171,13 +184,13 @@ bool getMqttEnabled()
     return enabled;
 }
 
-void printMqttConfig()
+static void printMqttConfig()
 {
     LOG_INFO("MQTT Config: Server: %s Port: %i Username: %s Password: %s Topic: %s\n",
              mqttSettings.server, mqttSettings.port, mqttSettings.username, mqttSettings.password, mqttSettings.topic);
 }
 
-void saveMqttSettings()
+static void saveMqttSettings()
 {
     LOG_INFO("Saving MQTT settings\n");
     preferences.begin("mqtt_config", false);
@@ -202,7 +215,7 @@ void setMqttSettings(const char *server, const unsigned int port, const char *us
     mqttConnect(); // Reconnect to MQTT with new settings
 }
 
-void loadMQTTsettings()
+static void loadMQTTsettings()
 {
     LOG_INFO("Loading MQTT settings\n");
     preferences.begin("mqtt_config", false);

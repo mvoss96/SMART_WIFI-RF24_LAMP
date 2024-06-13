@@ -24,7 +24,7 @@ struct RadioSettings
 
 RadioSettings radioSettings;
 
-static void radioInterrupt()
+IRAM_ATTR static void radioInterrupt()
 {
     _radioInterruptReceived = true;
 }
