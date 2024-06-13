@@ -18,7 +18,7 @@ struct LEDSettings
     uint16_t ww = 0;
     uint16_t cw = 0;
 };
-
+void setLedCallback(void (*callback)(void));
 bool getLedPower();
 bool toggleLedPower(bool power);
 void setLedPower(bool power);

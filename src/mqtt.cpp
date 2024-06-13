@@ -81,30 +81,35 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
         Serial.print((char)payload[i]);
     }
     Serial.println();
-}
 
-static void mqttConnect()
-{
-    // Make sure the connection is disconnected
-    if (mqttClient.connected())
+    // Convert payload to JSON
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+    if (error)
     {
-        mqttClient.disconnect();
-        delay(500);
+        LOG_ERROR("deserializeJson() failed: %s\n", error.c_str());
+        return;
     }
-
-    mqttClient.setServer(mqttSettings.server, mqttSettings.port);
-    mqttClient.setCallback(mqttCallback);
-    delay(100);
-    if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password))
+    if (doc.containsKey("state"))
     {
-        mqttClient.setBufferSize(1024);
-        mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str());
-        LOG_INFO("MQTT connected\n");
-        mqttHomeAssistandDiscovery();
+        const char *state = doc["state"];
+        if (strcasecmp(state, "ON") == 0)
+        {
+            setLedPower(true);
+        }
+        else if (strcasecmp(state, "OFF") == 0)
+        {
+            setLedPower(false);
+        }
+        else
+        {
+            LOG_WARNING("Invalid state value: %s\n", state);
+        }
     }
-    else
+    if (doc.containsKey("brightness"))
     {
-        LOG_INFO("MQTT connection failed, rc=%i\n", mqttClient.state());
+        uint16_t brightness = doc["brightness"];
+        setLedBrightness(brightness);
     }
 }
 
@@ -122,7 +127,7 @@ static void mqttPublish()
 
     // Common Values for all modes
     doc["mode"] = mode;
-    doc["state"] = getLedPower();
+    doc["state"] = getLedPower() ? "ON" : "OFF";
     doc["brightness"] = getLedBrightness();
 
     if (LED_MODE == LED_MODES::CCT)
@@ -152,6 +157,32 @@ static void mqttPublish()
     snprintf(topic, sizeof(topic), "%s/light", mqttSettings.topic);
     log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, payload);
     mqttClient.publish(topic, payload);
+}
+
+static void mqttConnect()
+{
+    // Make sure the connection is disconnected
+    if (mqttClient.connected())
+    {
+        mqttClient.disconnect();
+        delay(500);
+    }
+
+    mqttClient.setServer(mqttSettings.server, mqttSettings.port);
+    mqttClient.setCallback(mqttCallback);
+    delay(100);
+    if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password))
+    {
+        mqttClient.setBufferSize(1024);
+        mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str());
+        setLedCallback(mqttPublish); // Set the callback function to publish data to MQTT when LED changes
+        LOG_INFO("MQTT connected\n");
+        mqttHomeAssistandDiscovery();
+    }
+    else
+    {
+        LOG_INFO("MQTT connection failed, rc=%i\n", mqttClient.state());
+    }
 }
 
 void handleMQTTConnection()

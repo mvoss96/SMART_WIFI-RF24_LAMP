@@ -5,8 +5,19 @@
 
 static const int pins[] = {LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN};
 static const size_t numLEDs = sizeof(pins) / sizeof(pins[0]);
+static bool stateChanged = false;
+
+// Callback function pointer for LED state change
+void (*ledCallback)(void) = NULL;
+
 
 LEDSettings ledSettings;
+
+
+void setLedCallback(void (*callback)(void))
+{
+    ledCallback = callback;
+}
 
 void ledInit()
 {
@@ -53,6 +64,11 @@ int ledSet()
     default:
         Serial.println("Invalid LED mode");
         return -1;
+    }
+    // Call the callback function if set
+    if (ledCallback)
+    {
+        ledCallback();
     }
     return 0;
 }
@@ -209,3 +225,4 @@ void setLedRgbww(uint16_t red, uint16_t green, uint16_t blue, uint16_t ww, uint1
     setLedCW(cw);
     ledSet();
 }
+
