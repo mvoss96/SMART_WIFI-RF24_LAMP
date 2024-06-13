@@ -4,6 +4,7 @@
 #include <RF24.h>
 
 #include "radio.h"
+#include "chipID.h"
 #include "config.h"
 #include "logging.h"
 
@@ -13,6 +14,7 @@ static Preferences preferences;
 static bool radioInitialized = false;
 static bool _radioInterruptReceived = false;
 static const auto RADIO_DATARATE = RF24_250KBPS;
+static char radioAddressStr[] = "00:00:00:00:00";
 
 struct RadioSettings
 {
@@ -29,20 +31,21 @@ static void radioInterrupt()
 
 static void printRadioSettings()
 {
-    LOG_INFO("Radio settings: Channel: %i, Address: %c%c%c%c%i\n",
-             radioSettings.channel, radioSettings.radioAddress[0], radioSettings.radioAddress[1],
-             radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
+    LOG_INFO("Radio settings:\n");
+    LOG_INFO("Channel: %i\n", radioSettings.channel);
+    LOG_INFO("Radio Address: %02X:%02X:%02X:%02X:%02X\n", radioSettings.radioAddress[0], radioSettings.radioAddress[1], radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
 }
-
+ 
 static void loadRadioSettings()
 {
     LOG_INFO("Loading Radio settings\n");
+    const char* shortChipID = ChipID::getShortChipID();
     preferences.begin("radio_config", false);
     radioSettings.channel = preferences.getInt("channel", 100);
-    radioSettings.radioAddress[0] = preferences.getUChar("radioAddress0", 'R');
-    radioSettings.radioAddress[1] = preferences.getUChar("radioAddress1", 'F');
-    radioSettings.radioAddress[2] = preferences.getUChar("radioAddress2", '2');
-    radioSettings.radioAddress[3] = preferences.getUChar("radioAddress3", '4');
+    radioSettings.radioAddress[0] = preferences.getUChar("radioAddress0", shortChipID[2]);
+    radioSettings.radioAddress[1] = preferences.getUChar("radioAddress1", shortChipID[3]);
+    radioSettings.radioAddress[2] = preferences.getUChar("radioAddress2", shortChipID[4]);
+    radioSettings.radioAddress[3] = preferences.getUChar("radioAddress3", shortChipID[5]);
     radioSettings.radioAddress[4] = preferences.getUChar("radioAddress4", 0);
     preferences.end();
     printRadioSettings();
@@ -139,4 +142,39 @@ void radioLoop()
             handleRadioPacket(buf, packetSize);
         }
     }
+}
+
+char* getRadioAddressString()
+{
+    // return radio address in format "XX:XX:XX:XX:XX"
+    sprintf(radioAddressStr, "%02X:%02X:%02X:%02X:%02X", radioSettings.radioAddress[0], radioSettings.radioAddress[1], radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
+    return radioAddressStr;
+}
+
+uint8_t getRadioChannel()
+{
+    return radioSettings.channel;
+}
+
+void setRadioSettings(uint8_t channel, const char *radioAddress)
+{
+    radioSettings.channel = channel;
+    sscanf(radioAddress, "%02X:%02X:%02X:%02X:%02X", &radioSettings.radioAddress[0], &radioSettings.radioAddress[1], &radioSettings.radioAddress[2], &radioSettings.radioAddress[3], &radioSettings.radioAddress[4]);
+    LOG_INFO("Radio settings updated\n");
+    printRadioSettings();
+
+    // Save the radio settings
+    preferences.begin("radio_config", false);
+    preferences.putInt("channel", radioSettings.channel);
+    preferences.putUChar("radioAddress0", radioSettings.radioAddress[0]);
+    preferences.putUChar("radioAddress1", radioSettings.radioAddress[1]);
+    preferences.putUChar("radioAddress2", radioSettings.radioAddress[2]);
+    preferences.putUChar("radioAddress3", radioSettings.radioAddress[3]);
+    preferences.putUChar("radioAddress4", radioSettings.radioAddress[4]);
+    preferences.end();
+
+    // Restart the radio
+    radio.stopListening();
+    delay(100);
+    radioInit();
 }

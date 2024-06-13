@@ -18,6 +18,58 @@ static Preferences preferences;
 
 void mqttHomeAssistandDiscovery()
 {
+    JsonDocument doc;
+    JsonArray colorModes = doc["supported_color_modes"].to<JsonArray>();
+    switch (LED_MODE)
+    {
+    case LED_MODES::SINGLE:
+        colorModes.add("brightness");
+        break;
+    case LED_MODES::CCT:
+        colorModes.add("color_temp");
+        break;
+    case LED_MODES::RGB:
+        colorModes.add("rgb");
+        break;
+    case LED_MODES::RGBW:
+        colorModes.add("rgbw");
+        break;
+    case LED_MODES::RGBWW:
+        colorModes.add("rgbww");
+        break;
+    }
+
+    JsonArray identifiers = doc["device"]["identifiers"].to<JsonArray>();
+    identifiers.add(ChipID::getChipID());
+
+    doc["device_class"] = "light";
+    doc["configuration_url"] = WiFi.localIP().toString();
+    doc["brightness"] = true;
+    doc["brightness_scale"] = 254,
+    doc["command_topic"] = String(mqttSettings.topic) + "/set";
+    
+    doc["device"]["manufacturer"] = "MarcusVoss";
+    doc["device"]["model"] = MODELNAME;
+    doc["device"]["name"] = DEVICENAME;
+    doc["device"]["sw_version"] = SW_VERSION;
+    doc["name"] = "Light";
+    doc["schema"] = "json";
+    doc["state_topic"] = String(mqttSettings.topic) + "/light";
+    doc["unique_id"] = ChipID::getChipID();
+    
+
+    String payload;
+    serializeJson(doc, payload);
+    String topic = "homeassistant/light/" + String(mqttSettings.topic) + "/config";
+    bool res = mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    if (res)
+    {
+        LOG_INFO("MQTT Home Assistant Discovery published\n");
+    }
+    else
+    {
+        LOG_ERROR("MQTT Home Assistant Discovery failed\n");
+    }
 }
 
 void mqttConnect()
@@ -33,8 +85,9 @@ void mqttConnect()
     delay(100);
     if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password))
     {
-        mqttHomeAssistandDiscovery();
+        mqttClient.setBufferSize(1024);
         LOG_INFO("MQTT connected\n");
+        mqttHomeAssistandDiscovery();
     }
     else
     {
@@ -121,7 +174,7 @@ bool getMqttEnabled()
 void printMqttConfig()
 {
     LOG_INFO("MQTT Config: Server: %s Port: %i Username: %s Password: %s Topic: %s\n",
-              mqttSettings.server, mqttSettings.port, mqttSettings.username, mqttSettings.password, mqttSettings.topic);
+             mqttSettings.server, mqttSettings.port, mqttSettings.username, mqttSettings.password, mqttSettings.topic);
 }
 
 void saveMqttSettings()
@@ -146,6 +199,7 @@ void setMqttSettings(const char *server, const unsigned int port, const char *us
     LOG_INFO("MQTT settings updated\n");
     printMqttConfig();
     saveMqttSettings();
+    mqttConnect(); // Reconnect to MQTT with new settings
 }
 
 void loadMQTTsettings()

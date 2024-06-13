@@ -6,6 +6,7 @@
 #include "config.h"
 #include "network.h"
 #include "mqtt.h"
+#include "radio.h"
 
 char chipIdStr[32];
 
@@ -18,6 +19,9 @@ static WiFiManagerParameter custom_mqtt_port("mqttPort", "MQTT Port", String(mqt
 static WiFiManagerParameter custom_mqtt_username("mqttUsername", "MQTT Username", mqttSettings.username, 40);
 static WiFiManagerParameter custom_mqtt_password("mqttPassword", "MQTT Password", mqttSettings.password, 40);
 static WiFiManagerParameter custom_mqtt_topic("mqttTopic", "MQTT Topic", mqttSettings.topic, 40);
+static WiFiManagerParameter customRadioChannel("radioChannel", "Radio Channel (0 -> 125)", String(getRadioChannel()).c_str(), 3);
+static WiFiManagerParameter customRadioAddress("radioAddress", "Radio Address (00:00:00:00:00)", getRadioAddressString(), sizeof("00:00:00:00:00"));
+
 
 const String translateWiFiStatus(wl_status_t status)
 {
@@ -49,6 +53,8 @@ const String translateWiFiStatus(wl_status_t status)
 void saveParamsCallback()
 {
     setMqttSettings(custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()), custom_mqtt_username.getValue(), custom_mqtt_password.getValue(), custom_mqtt_topic.getValue());
+    setRadioSettings(atoi(customRadioChannel.getValue()), customRadioAddress.getValue());
+    //ESP.restart(); // Restart the device to apply the new settings
 }
 
 void wifiInit()
@@ -66,12 +72,16 @@ void wifiInit()
     custom_mqtt_username.setValue(mqttSettings.username, 40);
     custom_mqtt_password.setValue(mqttSettings.password, 40);
     custom_mqtt_topic.setValue(mqttSettings.topic, 40);
+    customRadioChannel.setValue(String(getRadioChannel()).c_str(), 3);
+    customRadioAddress.setValue(getRadioAddressString(), sizeof("00:00:00:00:00"));
 
     wifiManager.addParameter(&custom_mqtt_server);
     wifiManager.addParameter(&custom_mqtt_port);
     wifiManager.addParameter(&custom_mqtt_username);
     wifiManager.addParameter(&custom_mqtt_password);
     wifiManager.addParameter(&custom_mqtt_topic);
+    wifiManager.addParameter(&customRadioChannel);
+    wifiManager.addParameter(&customRadioAddress);
     wifiManager.setConnectTimeout(10);
     wifiManager.setParamsPage(true);
     wifiManager.setConfigPortalBlocking(false);
