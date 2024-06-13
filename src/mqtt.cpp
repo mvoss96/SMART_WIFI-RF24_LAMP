@@ -45,7 +45,7 @@ void mqttHomeAssistandDiscovery()
     doc["device_class"] = "light";
     doc["configuration_url"] = WiFi.localIP().toString();
     doc["brightness"] = true;
-    doc["brightness_scale"] = 254,
+    doc["brightness_scale"] = 1023,
     doc["command_topic"] = String(mqttSettings.topic) + "/set";
     
     doc["device"]["manufacturer"] = "MarcusVoss";
@@ -109,28 +109,28 @@ void mqttPublish()
 
     // Common Values for all modes
     doc["mode"] = mode;
-    doc["power"] = ledSettings.power;
-    doc["brightness"] = ledSettings.brightness;
+    doc["state"] = getLedPower();
+    doc["brightness"] = getLedBrightness();
 
     if (LED_MODE == LED_MODES::CCT)
     {
-        doc["color"] = ledSettings.color;
+        doc["color"] = getLedColor();
     }
     else if (LED_MODE == LED_MODES::RGB || LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
     {
-        doc["red"] = ledSettings.red;
-        doc["green"] = ledSettings.green;
-        doc["blue"] = ledSettings.blue;
+        doc["red"] = getLedRed();
+        doc["green"] = getLedGreen();
+        doc["blue"] = getLedBlue();
     }
 
     if (LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
     {
-        doc["ww"] = ledSettings.ww;
+        doc["ww"] = getLedWW();
     }
 
     if (LED_MODE == LED_MODES::RGBWW)
     {
-        doc["cw"] = ledSettings.cw;
+        doc["cw"] = getLedCW();
     }
 
     char payload[128];
