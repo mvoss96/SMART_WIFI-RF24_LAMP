@@ -15,6 +15,7 @@ static unsigned long mqttReconnectTimer = ULONG_MAX;
 static WiFiClient espClient;
 static PubSubClient mqttClient(espClient);
 static Preferences preferences;
+static bool ledStateChange = false;
 
 static void mqttHomeAssistandDiscovery()
 {
@@ -156,7 +157,10 @@ static void mqttPublish()
     char topic[sizeof(mqttSettings.topic) + sizeof("/light")];
     snprintf(topic, sizeof(topic), "%s/light", mqttSettings.topic);
     log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, payload);
-    mqttClient.publish(topic, payload);
+    if (!mqttClient.publish(topic, payload))
+    {
+        LOG_ERROR("MQTT publish failed\n");
+    }
 }
 
 static void mqttConnect()
@@ -175,9 +179,11 @@ static void mqttConnect()
     {
         mqttClient.setBufferSize(1024);
         mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str());
-        setLedCallback(mqttPublish); // Set the callback function to publish data to MQTT when LED changes
+        setLedCallback([]()
+                       { ledStateChange = true; });
         LOG_INFO("MQTT connected\n");
         mqttHomeAssistandDiscovery();
+        mqttPublish();
     }
     else
     {
@@ -201,10 +207,11 @@ void handleMQTTConnection()
     }
 
     static unsigned long lastPublishTime = 0;
-    if (millis() - lastPublishTime >= MQTT_PUBLISH_INTERVAL)
+    if (ledStateChange || millis() - lastPublishTime >= MQTT_PUBLISH_INTERVAL)
     {
         mqttPublish(); // Publish data to MQTT
         lastPublishTime = millis();
+        ledStateChange = false;
     }
     mqttClient.loop(); // Allow MQTT client to process incoming and outgoing messages
 }

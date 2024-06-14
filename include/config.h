@@ -33,7 +33,7 @@ inline const char *getLEDModeStr(LED_MODES mode)
 #define MODELNAME "SMART WIFI-RF24 Lamp"     // Model name for Home Assistant
 #define WIFI_RECONNECT_ATTEMPT_INTERVAL 2000 // Interval between WiFi reconnection attempts in milliseconds
 #define MQTT_RECONNECT_ATTEMPT_INTERVAL 5000 // Interval between MQTT reconnection attempts in milliseconds
-#define LED_PWM_FREQUENCY 15000              // Frequency for LED PWM Control
+#define LED_PWM_FREQUENCY 30000               // Frequency for LED PWM Control
 #define MQTT_PUBLISH_INTERVAL 10000          // Interval between MQTT publishes in milliseconds
 
 #define LED_MODE LED_MODES::SINGLE           // Set the LED mode
