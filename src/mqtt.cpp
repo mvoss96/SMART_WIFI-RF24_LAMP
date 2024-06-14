@@ -17,6 +17,55 @@ static PubSubClient mqttClient(espClient);
 static Preferences preferences;
 static bool ledStateChange = false;
 
+static void mqttPublish()
+{
+    // Return if MQTT is not enabled or not connected
+    if (!mqttClient.connected())
+    {
+        return;
+    }
+
+    JsonDocument doc;
+
+    const char *mode = getLEDModeStr(LED_MODE);
+
+    // Common Values for all modes
+    doc["mode"] = mode;
+    doc["state"] = getLedPower() ? "ON" : "OFF";
+    doc["brightness"] = getLedBrightness();
+
+    if (LED_MODE == LED_MODES::CCT)
+    {
+        doc["color"] = getLedColor();
+    }
+    else if (LED_MODE == LED_MODES::RGB || LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
+    {
+        doc["red"] = getLedRed();
+        doc["green"] = getLedGreen();
+        doc["blue"] = getLedBlue();
+    }
+
+    if (LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
+    {
+        doc["ww"] = getLedWW();
+    }
+
+    if (LED_MODE == LED_MODES::RGBWW)
+    {
+        doc["cw"] = getLedCW();
+    }
+
+    char payload[128];
+    serializeJson(doc, payload, sizeof(payload));
+    char topic[sizeof(mqttSettings.topic) + sizeof("/light")];
+    snprintf(topic, sizeof(topic), "%s/light", mqttSettings.topic);
+    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, payload);
+    if (!mqttClient.publish(topic, payload))
+    {
+        LOG_ERROR("MQTT publish failed\n");
+    }
+}
+
 static void mqttHomeAssistandDiscovery()
 {
     JsonDocument doc;
@@ -48,7 +97,7 @@ static void mqttHomeAssistandDiscovery()
     doc["brightness"] = true;
     doc["brightness_scale"] = 1023,
     doc["command_topic"] = String(mqttSettings.topic) + "/set";
-
+    doc["availability_topic"] = String(mqttSettings.topic) + "/status";
     doc["device"]["manufacturer"] = "MarcusVoss";
     doc["device"]["model"] = MODELNAME;
     doc["device"]["name"] = DEVICENAME;
@@ -70,6 +119,7 @@ static void mqttHomeAssistandDiscovery()
     {
         LOG_ERROR("MQTT Home Assistant Discovery failed\n");
     }
+    mqttPublish(); // Publish current state to MQTT
 }
 
 IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int length)
@@ -121,55 +171,6 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
     }
 }
 
-static void mqttPublish()
-{
-    // Return if MQTT is not enabled or not connected
-    if (!mqttClient.connected())
-    {
-        return;
-    }
-
-    JsonDocument doc;
-
-    const char *mode = getLEDModeStr(LED_MODE);
-
-    // Common Values for all modes
-    doc["mode"] = mode;
-    doc["state"] = getLedPower() ? "ON" : "OFF";
-    doc["brightness"] = getLedBrightness();
-
-    if (LED_MODE == LED_MODES::CCT)
-    {
-        doc["color"] = getLedColor();
-    }
-    else if (LED_MODE == LED_MODES::RGB || LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
-    {
-        doc["red"] = getLedRed();
-        doc["green"] = getLedGreen();
-        doc["blue"] = getLedBlue();
-    }
-
-    if (LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
-    {
-        doc["ww"] = getLedWW();
-    }
-
-    if (LED_MODE == LED_MODES::RGBWW)
-    {
-        doc["cw"] = getLedCW();
-    }
-
-    char payload[128];
-    serializeJson(doc, payload, sizeof(payload));
-    char topic[sizeof(mqttSettings.topic) + sizeof("/light")];
-    snprintf(topic, sizeof(topic), "%s/light", mqttSettings.topic);
-    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, payload);
-    if (!mqttClient.publish(topic, payload))
-    {
-        LOG_ERROR("MQTT publish failed\n");
-    }
-}
-
 static void mqttConnect()
 {
     // Make sure the connection is disconnected
@@ -181,8 +182,7 @@ static void mqttConnect()
 
     mqttClient.setServer(mqttSettings.server, mqttSettings.port);
     mqttClient.setCallback(mqttCallback);
-    delay(100);
-    if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password))
+    if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password, (String(mqttSettings.topic) + "/status").c_str(), 1, true, "offline"))
     {
         mqttClient.setBufferSize(1024);
         mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str()); // Subscribe to the set topic
@@ -190,8 +190,9 @@ static void mqttConnect()
         setLedCallback([]()
                        { ledStateChange = true; });
         LOG_INFO("MQTT connected\n");
+        delay(100);
         mqttHomeAssistandDiscovery();
-        mqttPublish();
+        mqttClient.publish((String(mqttSettings.topic) + "/status").c_str(), "online", true);
     }
     else
     {
