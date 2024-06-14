@@ -29,17 +29,9 @@ IRAM_ATTR static void radioInterrupt()
     _radioInterruptReceived = true;
 }
 
-static void printRadioSettings()
-{
-    LOG_INFO("Radio settings:\n");
-    LOG_INFO("Channel: %i\n", radioSettings.channel);
-    LOG_INFO("Radio Address: %02X:%02X:%02X:%02X:%02X\n", radioSettings.radioAddress[0], radioSettings.radioAddress[1], radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
-}
- 
 static void loadRadioSettings()
 {
-    LOG_INFO("Loading Radio settings\n");
-    const char* shortChipID = ChipID::getShortChipID();
+    const char *shortChipID = ChipID::getShortChipID();
     preferences.begin("radio_config", false);
     radioSettings.channel = preferences.getInt("channel", 100);
     radioSettings.radioAddress[0] = preferences.getUChar("radioAddress0", shortChipID[2]);
@@ -48,7 +40,8 @@ static void loadRadioSettings()
     radioSettings.radioAddress[3] = preferences.getUChar("radioAddress3", shortChipID[5]);
     radioSettings.radioAddress[4] = preferences.getUChar("radioAddress4", 0);
     preferences.end();
-    printRadioSettings();
+    LOG_INFO("Loaded Radio settings: Channel: %i, Radio Address: %02X:%02X:%02X:%02X:%02X\n",
+             radioSettings.channel, radioSettings.radioAddress[0], radioSettings.radioAddress[1], radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
 }
 
 void radioInit()
@@ -144,7 +137,7 @@ void radioLoop()
     }
 }
 
-char* getRadioAddressString()
+char *getRadioAddressString()
 {
     // return radio address in format "XX:XX:XX:XX:XX"
     sprintf(radioAddressStr, "%02X:%02X:%02X:%02X:%02X", radioSettings.radioAddress[0], radioSettings.radioAddress[1], radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
@@ -160,8 +153,8 @@ void setRadioSettings(uint8_t channel, const char *radioAddress)
 {
     radioSettings.channel = channel;
     sscanf(radioAddress, "%02X:%02X:%02X:%02X:%02X", &radioSettings.radioAddress[0], &radioSettings.radioAddress[1], &radioSettings.radioAddress[2], &radioSettings.radioAddress[3], &radioSettings.radioAddress[4]);
-    LOG_INFO("Radio settings updated\n");
-    printRadioSettings();
+    LOG_INFO("Radio settings updated: Channel: %i, Radio Address: %02X:%02X:%02X:%02X:%02X\n",
+             radioSettings.channel, radioSettings.radioAddress[0], radioSettings.radioAddress[1], radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
 
     // Save the radio settings
     preferences.begin("radio_config", false);

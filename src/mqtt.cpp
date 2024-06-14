@@ -61,7 +61,7 @@ static void mqttHomeAssistandDiscovery()
     String payload;
     serializeJson(doc, payload);
     String topic = "homeassistant/light/" + String(mqttSettings.topic) + "/config";
-    bool res = mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    bool res = mqttClient.publish(topic.c_str(), payload.c_str(), false);
     if (res)
     {
         LOG_INFO("MQTT Home Assistant Discovery published\n");
@@ -82,6 +82,13 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
         Serial.print((char)payload[i]);
     }
     Serial.println();
+
+    // Resend Home Assistant Discovery message if Home Assistant status recieved is "online"
+    if (strcmp(topic, "homeassistant/status") == 0 && strcasecmp((char *)payload, "online") == 0)
+    {
+        mqttHomeAssistandDiscovery();
+        return;
+    }
 
     // Convert payload to JSON
     JsonDocument doc;
@@ -178,7 +185,8 @@ static void mqttConnect()
     if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password))
     {
         mqttClient.setBufferSize(1024);
-        mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str());
+        mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str()); // Subscribe to the set topic
+        mqttClient.subscribe("homeassistant/status");                        // Subscribe to the homeassistant status topic
         setLedCallback([]()
                        { ledStateChange = true; });
         LOG_INFO("MQTT connected\n");
@@ -222,12 +230,6 @@ bool getMqttEnabled()
     return enabled;
 }
 
-static void printMqttConfig()
-{
-    LOG_INFO("MQTT Config: Server: %s Port: %i Username: %s Password: %s Topic: %s\n",
-             mqttSettings.server, mqttSettings.port, mqttSettings.username, mqttSettings.password, mqttSettings.topic);
-}
-
 static void saveMqttSettings()
 {
     LOG_INFO("Saving MQTT settings\n");
@@ -248,14 +250,12 @@ void setMqttSettings(const char *server, const unsigned int port, const char *us
     strcpy(mqttSettings.password, password);
     strcpy(mqttSettings.topic, topic);
     LOG_INFO("MQTT settings updated\n");
-    printMqttConfig();
     saveMqttSettings();
     mqttConnect(); // Reconnect to MQTT with new settings
 }
 
 static void loadMQTTsettings()
 {
-    LOG_INFO("Loading MQTT settings\n");
     preferences.begin("mqtt_config", false);
     strcpy(mqttSettings.server, preferences.getString("mqttServer", "").c_str());
     mqttSettings.port = preferences.getInt("mqttPort", 1883);
@@ -263,7 +263,8 @@ static void loadMQTTsettings()
     strcpy(mqttSettings.password, preferences.getString("mqttPassword", "").c_str());
     strcpy(mqttSettings.topic, preferences.getString("mqttTopic", ChipID::getChipID()).c_str());
     preferences.end();
-    printMqttConfig();
+    LOG_INFO("MQTT Settings loaded: Server: %s Port: %i Username: %s Password: %s Topic: %s\n",
+             mqttSettings.server, mqttSettings.port, mqttSettings.username, mqttSettings.password, mqttSettings.topic);
 }
 
 void mqttInit()

@@ -1,7 +1,10 @@
 #include <Arduino.h>
+#include <Preferences.h>
 #include "ledControl.h"
 #include "config.h"
 #include "logging.h"
+
+static Preferences preferences;
 
 static const int pins[] = {LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN};
 static const size_t numLEDs = sizeof(pins) / sizeof(pins[0]);
@@ -10,13 +13,41 @@ static bool stateChanged = false;
 // Callback function pointer for LED state change
 void (*ledCallback)(void) = NULL;
 
-
 LEDSettings ledSettings;
 
-
-void setLedCallback(void (*callback)(void))
+IRAM_ATTR void setLedCallback(void (*callback)(void))
 {
     ledCallback = callback;
+}
+
+static void loadLedSettings()
+{
+    preferences.begin("led", true);
+    ledSettings.power = preferences.getBool("ledPower", false);
+    ledSettings.brightness = preferences.getUShort("ledBrightness", 0);
+    ledSettings.color = preferences.getUShort("ledColor", 0);
+    ledSettings.red = preferences.getUShort("ledRed", 0);
+    ledSettings.green = preferences.getUShort("ledGreen", 0);
+    ledSettings.blue = preferences.getUShort("ledBlue", 0);
+    ledSettings.ww = preferences.getUShort("ledWw", 0);
+    ledSettings.cw = preferences.getUShort("ledCw", 0);
+    preferences.end();
+
+    LOG_INFO("Loaded LED settings: power=%i, brightness=%i, color=%i, red=%i, green=%i, blue=%i, ww=%i, cw=%i\n",
+             ledSettings.power, ledSettings.brightness, ledSettings.color, ledSettings.red, ledSettings.green, ledSettings.blue, ledSettings.ww, ledSettings.cw);
+}
+
+static void saveLedSettings(){
+    preferences.begin("led", false);
+    preferences.putBool("ledPower", ledSettings.power);
+    preferences.putUShort("ledBrightness", ledSettings.brightness);
+    preferences.putUShort("ledColor", ledSettings.color);
+    preferences.putUShort("ledRed", ledSettings.red);
+    preferences.putUShort("ledGreen", ledSettings.green);
+    preferences.putUShort("ledBlue", ledSettings.blue);
+    preferences.putUShort("ledWw", ledSettings.ww);
+    preferences.putUShort("ledCw", ledSettings.cw);
+    preferences.end();
 }
 
 void ledInit()
@@ -30,6 +61,8 @@ void ledInit()
             ledcWrite(i, 0);
         }
     }
+    loadLedSettings();
+    ledSet();
 }
 
 int ledSet()
@@ -70,9 +103,9 @@ int ledSet()
     {
         ledCallback();
     }
+    saveLedSettings(); // Save LED settings to preferences for restoration after reboot
     return 0;
 }
-
 
 void setLedPower(bool power)
 {
@@ -225,4 +258,3 @@ void setLedRgbww(uint16_t red, uint16_t green, uint16_t blue, uint16_t ww, uint1
     setLedCW(cw);
     ledSet();
 }
-
