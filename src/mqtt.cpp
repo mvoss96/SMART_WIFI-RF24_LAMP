@@ -216,7 +216,7 @@ void handleMQTTConnection()
     }
 
     static unsigned long lastPublishTime = 0;
-    if (ledStateChange || millis() - lastPublishTime >= MQTT_PUBLISH_INTERVAL)
+    if (ledStateChange || (MQTT_PUBLISH_INTERVAL != -1 && (millis() - lastPublishTime >= MQTT_PUBLISH_INTERVAL)))
     {
         mqttPublish(); // Publish data to MQTT
         lastPublishTime = millis();
