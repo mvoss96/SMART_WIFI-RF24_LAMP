@@ -23,8 +23,8 @@ IRAM_ATTR void setLedCallback(void (*callback)(void))
 static void loadLedSettings()
 {
     preferences.begin("led", true);
-    ledSettings.power = preferences.getBool("ledPower", false);
-    ledSettings.brightness = preferences.getUShort("ledBrightness", 0);
+    ledSettings.power = preferences.getBool("ledPower", true);
+    ledSettings.brightness = preferences.getUShort("ledBrightness", 256);
     ledSettings.color = preferences.getUShort("ledColor", 0);
     ledSettings.red = preferences.getUShort("ledRed", 0);
     ledSettings.green = preferences.getUShort("ledGreen", 0);
@@ -37,7 +37,8 @@ static void loadLedSettings()
              ledSettings.power, ledSettings.brightness, ledSettings.color, ledSettings.red, ledSettings.green, ledSettings.blue, ledSettings.ww, ledSettings.cw);
 }
 
-static void saveLedSettings(){
+static void saveLedSettings()
+{
     preferences.begin("led", false);
     preferences.putBool("ledPower", ledSettings.power);
     preferences.putUShort("ledBrightness", ledSettings.brightness);
@@ -95,7 +96,7 @@ int ledSet()
         }
         break;
     default:
-        Serial.println("Invalid LED mode");
+        LOG_ERROR("Invalid LED mode");
         return -1;
     }
     // Call the callback function if set
@@ -118,7 +119,7 @@ bool getLedPower()
     return ledSettings.power;
 }
 
-bool toggleLedPower(bool power)
+bool toggleLedPower()
 {
     ledSettings.power = !ledSettings.power;
     ledSet();
@@ -141,6 +142,16 @@ void setLedBrightness(uint16_t brightness)
     ledSet();
 }
 
+void increaseLedBrightness()
+{
+    setLedBrightness(min(ledSettings.brightness + BRIGHTNESS_STEP_SIZE, LED_MAX_VAL));
+}
+
+void decreaseLedBrightness()
+{
+    setLedBrightness(max(ledSettings.brightness - BRIGHTNESS_STEP_SIZE, MIN_BRIGHTNESS));
+}
+
 uint16_t getLedColor()
 {
     return ledSettings.color;
@@ -155,6 +166,16 @@ void setLedColor(uint16_t color)
     }
     ledSettings.color = color;
     ledSet();
+}
+
+void increaseLedColor()
+{
+    setLedColor(min(ledSettings.color + COLOR_STEP_SIZE, LED_MAX_VAL));
+}
+
+void decreaseLedColor()
+{
+    setLedColor(max(ledSettings.color - COLOR_STEP_SIZE, 0));
 }
 
 uint16_t getLedRed()
@@ -173,6 +194,16 @@ void setLedRed(uint16_t red)
     ledSet();
 }
 
+void increaseLedRed()
+{
+    setLedRed(min(ledSettings.red + COLOR_STEP_SIZE, LED_MAX_VAL));
+}
+
+void decreaseLedRed()
+{
+    setLedRed(max(ledSettings.red - COLOR_STEP_SIZE, 0));
+}
+
 uint16_t getLedGreen()
 {
     return ledSettings.green;
@@ -187,6 +218,16 @@ void setLedGreen(uint16_t green)
     }
     ledSettings.green = green;
     ledSet();
+}
+
+void increaseLedGreen()
+{
+    setLedGreen(min(ledSettings.green + COLOR_STEP_SIZE, LED_MAX_VAL));
+}
+
+void decreaseLedGreen()
+{
+    setLedGreen(max(ledSettings.green - COLOR_STEP_SIZE, 0));
 }
 
 uint16_t getLedBlue()
@@ -205,6 +246,16 @@ void setLedBlue(uint16_t blue)
     ledSet();
 }
 
+void increaseLedBlue()
+{
+    setLedBlue(min(ledSettings.blue + COLOR_STEP_SIZE, LED_MAX_VAL));
+}
+
+void decreaseLedBlue()
+{
+    setLedBlue(max(ledSettings.blue - COLOR_STEP_SIZE, 0));
+}
+
 uint16_t getLedWW()
 {
     return ledSettings.ww;
@@ -221,6 +272,16 @@ void setLedWW(uint16_t ww)
     ledSet();
 }
 
+void increaseLedWW()
+{
+    setLedWW(min(ledSettings.ww + COLOR_STEP_SIZE, LED_MAX_VAL));
+}
+
+void decreaseLedWW()
+{
+    setLedWW(max(ledSettings.ww - COLOR_STEP_SIZE, 0));
+}
+
 uint16_t getLedCW()
 {
     return ledSettings.cw;
@@ -235,6 +296,16 @@ void setLedCW(uint16_t cw)
     }
     ledSettings.cw = cw;
     ledSet();
+}
+
+void increaseLedCW()
+{
+    setLedCW(min(ledSettings.cw + COLOR_STEP_SIZE, LED_MAX_VAL));
+}
+
+void decreaseLedCW()
+{
+    setLedCW(max(ledSettings.cw - COLOR_STEP_SIZE, 0));
 }
 
 void setLedRgb(uint16_t red, uint16_t green, uint16_t blue)

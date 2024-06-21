@@ -5,6 +5,34 @@
 #include "radio.h"
 #include "chipID.h"
 
+// void printMemoryInfo(){
+//   uint32_t flashSize = ESP.getFlashChipSize();
+//   Serial.printf("Flash Size: %u bytes\n", flashSize);
+
+//   uint32_t psramSize = ESP.getPsramSize();
+//   Serial.printf("PSRAM Size: %u bytes\n", psramSize);
+
+//   uint32_t freeMemory = ESP.getFreeHeap();
+//   Serial.printf("Free Memory: %u bytes\n", freeMemory);
+
+//   uint32_t Totalheap = ESP.getHeapSize();
+//   Serial.printf("Total heap: %u bytes\n", Totalheap);
+
+//   uint32_t FreePSRAM = ESP.getFreePsram();
+//   Serial.printf("Free PSRAM: %u bytes\n", FreePSRAM);
+// }
+
+// radio task
+void radioTask(void *pvParameters)
+{
+  radioInit(); // Initialize the RF radio
+  for (;;)
+  {
+    radioLoop();
+    vTaskDelay(1); // Delay for 1 tick to allow other tasks to run
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -12,9 +40,9 @@ void setup()
   Serial.print("\n\ncompile time: ");
   Serial.println(__DATE__ " " __TIME__);
   Serial.println(ChipID::getChipID());
-  ledInit(); // Initialize the LED pins
-  radioInit(); // Initialize the RF radio
-  wifiInit(); // Initialize WiFi and MQTT settings
+  ledInit();                                                // Initialize the LED pins
+  xTaskCreate(radioTask, "radioTask", 4096, NULL, 1, NULL); // Create the radio task
+  wifiInit();                                               // Initialize WiFi and MQTT settings
 }
 
 void loop()

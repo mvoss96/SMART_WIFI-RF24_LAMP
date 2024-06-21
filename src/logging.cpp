@@ -1,8 +1,6 @@
 #include <Arduino.h>
 #include "logging.h"
 
-const static int LOG_BUFFER_SIZE = 256; // Buffer size for the log message
-
 // Function to get log level string
 static const char *getLogLevelString(LOG_LEVEL level)
 {
@@ -24,6 +22,12 @@ static const char *getLogLevelString(LOG_LEVEL level)
 // Custom log functions
 void log(LOG_LEVEL level, const char *format, ...)
 {
+    // Skip log messages below the set level
+    if (level < LOG_SET_LEVEL)
+    {
+        return;
+    }
+
     char buffer[LOG_BUFFER_SIZE];
     va_list args;
     va_start(args, format);

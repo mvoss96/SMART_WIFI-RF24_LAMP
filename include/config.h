@@ -1,5 +1,6 @@
 #pragma once
 
+#define LED_MAX_VAL 1024                      // Maximum value for LED brightness and color (1024 for 10-bit PWM) DO NOT CHANGE
 enum class LED_MODES
 {
     SINGLE, // Single color LED (LED1)
@@ -28,22 +29,29 @@ inline const char *getLEDModeStr(LED_MODES mode)
     }
 }
 
-#define DEVICENAME "ESP32RF-Moon-Lamp"       // Name of the device also used as Hostname for WiFi AP
+
+// Configuration
+
+#define DEVICENAME "ESP32RF-Moon-Lamp"       // Name of the device (also used as Hostname for WiFi AP)
 #define SW_VERSION "1.0.0"                   // Software version
 #define MODELNAME "SMART WIFI-RF24 Lamp"     // Model name for Home Assistant
 #define WIFI_RECONNECT_ATTEMPT_INTERVAL 2000 // Interval between WiFi reconnection attempts in milliseconds
 #define MQTT_RECONNECT_ATTEMPT_INTERVAL 5000 // Interval between MQTT reconnection attempts in milliseconds
-#define LED_PWM_FREQUENCY 30000               // Frequency for LED PWM Control
-#define MQTT_PUBLISH_INTERVAL 10000          // Interval between MQTT publishes in milliseconds
+#define LED_PWM_FREQUENCY 30000              // Frequency for LED PWM Control
+#define MQTT_MIN_DELAY 500                   // Minimum delay between MQTT messages in milliseconds
+#define MQTT_PUBLISH_INTERVAL -1             // Interval between MQTT publishes in milliseconds (-1 for no interval)
 
-#define LED_MODE LED_MODES::SINGLE           // Set the LED mode
-#define LED1_PIN 3                           // Pin for LED1
-#define LED2_PIN -1                          // Pin for LED2 set to -1 if not used
-#define LED3_PIN -1                          // Pin for LED3 set to -1 if not used
-#define LED4_PIN -1                          // Pin for LED4 set to -1 if not used
-#define LED5_PIN -1                          // Pin for LED5 set to -1 if not used
+#define LED_MODE LED_MODES::SINGLE            // Set the LED mode
+#define BRIGHTNESS_STEP_SIZE LED_MAX_VAL / 10 // Number of brightness steps
+#define COLOR_STEP_SIZE LED_MAX_VAL / 10      // Number of color steps
+#define MIN_BRIGHTNESS 5                      // Minimum brightness value
+#define LED1_PIN 3                            // Pin for LED1
+#define LED2_PIN -1                           // Pin for LED2 set to -1 if not used
+#define LED3_PIN -1                           // Pin for LED3 set to -1 if not used
+#define LED4_PIN -1                           // Pin for LED4 set to -1 if not used
+#define LED5_PIN -1                           // Pin for LED5 set to -1 if not used
 
-#define RF24RADIO_ENABLED true               // Enable or disable RF24 radio (true or false)
-#define PIN_RADIO_CE 7                       // Radio CE pin
-#define PIN_RADIO_CSN 8                      // Radio CSN pin
-#define PIN_RADIO_IRQ 9                      // Radio IRQ pin  
+#define RF24RADIO_ENABLED true // Enable or disable RF24 radio (true or false)
+#define PIN_RADIO_CE 7         // Radio CE pin
+#define PIN_RADIO_CSN 8        // Radio CSN pin
+#define PIN_RADIO_IRQ 9        // Radio IRQ pin

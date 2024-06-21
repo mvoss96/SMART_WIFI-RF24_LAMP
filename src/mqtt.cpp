@@ -7,6 +7,7 @@
 #include "config.h"
 #include "chipID.h"
 #include "mqtt.h"
+#include "radio.h"
 #include "ledControl.h"
 
 MQTT_Settings mqttSettings;
@@ -17,23 +18,13 @@ static PubSubClient mqttClient(espClient);
 static Preferences preferences;
 static bool ledStateChange = false;
 
-static void mqttPublish()
+static void getMqttLightMessage(char *buff, size_t len)
 {
-    // Return if MQTT is not enabled or not connected
-    if (!mqttClient.connected())
-    {
-        return;
-    }
-
     JsonDocument doc;
-
-    const char *mode = getLEDModeStr(LED_MODE);
-
-    // Common Values for all modes
+    const char *mode = getLEDModeStr(LED_MODE); // Common Values for all modes
     doc["mode"] = mode;
     doc["state"] = getLedPower() ? "ON" : "OFF";
     doc["brightness"] = getLedBrightness();
-
     if (LED_MODE == LED_MODES::CCT)
     {
         doc["color"] = getLedColor();
@@ -44,23 +35,53 @@ static void mqttPublish()
         doc["green"] = getLedGreen();
         doc["blue"] = getLedBlue();
     }
-
     if (LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
     {
         doc["ww"] = getLedWW();
     }
-
     if (LED_MODE == LED_MODES::RGBWW)
     {
         doc["cw"] = getLedCW();
     }
+    serializeJson(doc, buff, len);
+}
 
-    char payload[128];
-    serializeJson(doc, payload, sizeof(payload));
+static void getMQTTRemotesMessage(char *buff, size_t len)
+{
+    JsonDocument doc;
+    RemoteMap remoteMap = getRemoteMap();
+    for (auto r : remoteMap)
+    {
+        char key[32];
+        snprintf(key, sizeof(key), "%i", r.first);
+        String uuid = String(r.second.uuid[0], HEX) + String(r.second.uuid[1], HEX) + String(r.second.uuid[2], HEX) + String(r.second.uuid[3], HEX);
+        JsonObject remotes = doc[uuid].to<JsonObject>();
+        remotes["batteryPercentage"] = String(r.second.batteryPercentage) + "%";
+        remotes["batteryVoltage"] = String(r.second.batteryVoltage) + "mV";
+    }
+    serializeJson(doc, buff, len);
+}
+
+static void mqttPublish()
+{
+    // Return if MQTT is not enabled or not connected
+    if (!mqttClient.connected())
+    {
+        return;
+    }
+    char buffPayload[128];
+    getMqttLightMessage(buffPayload, sizeof(buffPayload));
     char topic[sizeof(mqttSettings.topic) + sizeof("/light")];
     snprintf(topic, sizeof(topic), "%s/light", mqttSettings.topic);
-    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, payload);
-    if (!mqttClient.publish(topic, payload))
+    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, buffPayload);
+    if (!mqttClient.publish(topic, buffPayload))
+    {
+        LOG_ERROR("MQTT publish failed\n");
+    }
+    getMQTTRemotesMessage(buffPayload, sizeof(buffPayload));
+    snprintf(topic, sizeof(topic), "%s/remotes", mqttSettings.topic);
+    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, buffPayload);
+    if (!mqttClient.publish(topic, buffPayload))
     {
         LOG_ERROR("MQTT publish failed\n");
     }
@@ -216,7 +237,14 @@ void handleMQTTConnection()
     }
 
     static unsigned long lastPublishTime = 0;
-    if (ledStateChange || (MQTT_PUBLISH_INTERVAL != -1 && (millis() - lastPublishTime >= MQTT_PUBLISH_INTERVAL)))
+    unsigned long delta = millis() - lastPublishTime;
+
+    if (delta < MQTT_MIN_DELAY)
+    {
+        return; // Prevent MQTT messages from being sent too frequently
+    }
+
+    if (ledStateChange || (MQTT_PUBLISH_INTERVAL != -1 && (delta >= MQTT_PUBLISH_INTERVAL)))
     {
         mqttPublish(); // Publish data to MQTT
         lastPublishTime = millis();

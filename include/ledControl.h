@@ -5,8 +5,6 @@
 void ledInit();
 int ledSet();
 
-const uint16_t LED_MAX_VAL = 1024;
-
 struct LEDSettings
 {
     bool power = false;
@@ -20,25 +18,43 @@ struct LEDSettings
 };
 void setLedCallback(void (*callback)(void));
 bool getLedPower();
-bool toggleLedPower(bool power);
+bool toggleLedPower();
 void setLedPower(bool power);
 
 uint16_t getLedBrightness();
 void setLedBrightness(uint16_t brightness);
+void increaseLedBrightness();
+void decreaseLedBrightness();
 
 uint16_t getLedColor();
 void setLedColor(uint16_t color);
+void increaseLedColor();
+void decreaseLedColor();
 
 uint16_t getLedRed();
 void setLedRed(uint16_t red);
+void increaseLedRed();
+void decreaseLedRed();
+
 uint16_t getLedGreen();
 void setLedGreen(uint16_t green);
+void increaseLedGreen();
+void decreaseLedGreen();
+
 uint16_t getLedBlue();
 void setLedBlue(uint16_t blue);
+void increaseLedBlue();
+void decreaseLedBlue();
+
 uint16_t getLedWW();
 void setLedWW(uint16_t ww);
+void increaseLedWW();
+void decreaseLedWW();
+
 uint16_t getLedCW();
 void setLedCW(uint16_t cw);
+void increaseLedCW();
+void decreaseLedCW();
 
 void setLedRgb(uint16_t red, uint16_t green, uint16_t blue);
 void setLedRgbw(uint16_t red, uint16_t green, uint16_t blue, uint16_t ww);

@@ -1,4 +1,3 @@
-// functions to communicate with the nrf24l01 radio module
 #include <Arduino.h>
 #include <Preferences.h>
 #include <RF24.h>
@@ -7,12 +6,15 @@
 #include "chipID.h"
 #include "config.h"
 #include "logging.h"
+#include "radioMessage.h"
+#include "ledControl.h"
 
 static RF24 radio(PIN_RADIO_CE, PIN_RADIO_CSN);
 static Preferences preferences;
+std::unordered_map<uint32_t, Remote> seenRemotes;
 
 static bool radioInitialized = false;
-static bool _radioInterruptReceived = false;
+static volatile bool _radioMsgReceived = false;
 static const auto RADIO_DATARATE = RF24_250KBPS;
 static char radioAddressStr[] = "00:00:00:00:00";
 
@@ -21,12 +23,16 @@ struct RadioSettings
     uint8_t channel;
     uint8_t radioAddress[5];
 };
-
 RadioSettings radioSettings;
 
 IRAM_ATTR static void radioInterrupt()
 {
-    _radioInterruptReceived = true;
+    bool tx_ds, dx_df, rx_dr;                // tx_ds = data sent, dx_df = data failed, rx_dr = data ready
+    radio.whatHappened(tx_ds, dx_df, rx_dr); // Reset the IRQ pin to High, allow for calling of available()
+    if (rx_dr)
+    {
+        _radioMsgReceived = true;
+    }
 }
 
 static void loadRadioSettings()
@@ -57,22 +63,15 @@ void radioInit()
     radio.maskIRQ(true, true, false); // args = "data_sent", "data_fail", "data_ready"
     attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
 
-    // Load the radio settings
-    loadRadioSettings();
-
-    // Set the radio address
-    // radioAddress[4] = address;
-
+    loadRadioSettings();                                  // Load the radio settings
     radio.setChannel(radioSettings.channel);              // Set the channel
     radio.setPALevel(RF24_PA_LOW);                        // Adjust power level
     radio.setAddressWidth(5);                             // Set address width
     radio.setCRCLength(RF24_CRC_16);                      // Set CRC length
     radio.setRetries(5, 15);                              // Set the number of retries and delay between retries
     radio.enableDynamicPayloads();                        // Enable dynamic payloads
-    radio.enableAckPayload();                             // Enable ack payloads
     radio.setDataRate(RADIO_DATARATE);                    // Set data rate
     radio.openReadingPipe(1, radioSettings.radioAddress); // Open a reading pipe on address, using pipe 1 as an example
-    radio.openWritingPipe(radioSettings.radioAddress);    // Set the writing pipe address
     radio.startListening();                               // Start listening
 
     LOG_INFO("RF24Radio initialized!\n");
@@ -86,53 +85,141 @@ bool radioIsInitialized()
 
 bool nrfListen(uint8_t *buf, uint8_t &packetSize)
 {
-    if (_radioInterruptReceived)
+    if (radio.available())
     {
-        _radioInterruptReceived = false;         // Reset the flag
-        bool tx_ds, dx_df, rx_dr;                // tx_ds = data sent, dx_df = data failed, rx_dr = data ready
-        radio.whatHappened(tx_ds, dx_df, rx_dr); // Reset the IRQ pin to High, allow for calling of available()
-        if (rx_dr && radio.available())
-        {
-            packetSize = radio.getDynamicPayloadSize();
-            radio.read(buf, packetSize); // Read the data into the buffer
-            return true;
-        }
+        packetSize = radio.getDynamicPayloadSize();
+        radio.read(buf, packetSize); // Read the data into the buffer
+        return true;
     }
 
     return false; // No data available
 }
 
-static void handleRadioPacket(uint8_t *buf, uint8_t &packetSize)
-{
-}
-
 static void logRadioPacket(uint8_t *buf, uint8_t &packetSize)
 {
-    char receivedDataStr[96] = {0};
+    char packetStr[128];
     for (int i = 0; i < packetSize; i++)
     {
-        char hex[3];
-        sprintf(hex, "%02X", buf[i]);
-        strcat(receivedDataStr, hex);
-        if (i < packetSize - 1)
-        {
-            strcat(receivedDataStr, ":");
-        }
+        sprintf(packetStr + i * 3, "%02X ", buf[i]);
     }
-    strcat(receivedDataStr, "\n");
-    LOG_DEBUG("Received radio packet of size %i: %s\n", packetSize, receivedDataStr);
+    LOG_DEBUG("Received packet: %s\n", packetStr);
+}
+
+static void handleRemoteRadioMessage(RadioMessageReceived &msg)
+{
+    RemoteRadioMessageData remoteData(msg.getData(), msg.getDataSize());
+    if (!remoteData.getValid())
+    {
+        LOG_WARNING("Skipping invalid remote message\n");
+        return;
+    }
+    remoteData.print();
+
+    // Store the remote data
+    Remote remote;
+    memcpy(remote.uuid, msg.getUUID(), sizeof(remote.uuid));
+    remote.batteryPercentage = remoteData.getBatteryPercentage();
+    remote.batteryVoltage = remoteData.getBatteryVoltage();
+    const uint32_t uuid = *((const uint32_t *)(remote.uuid));
+    seenRemotes[uuid] = remote;
+
+    // Handle the remote event
+    switch (remoteData.getEvent())
+    {
+    case RemoteEvents::ON:
+    {
+        LOG_INFO("Remote ON event\n");
+        setLedPower(true);
+        break;
+    }
+    case RemoteEvents::OFF:
+    {
+        LOG_INFO("Remote OFF event\n");
+        setLedPower(false);
+        break;
+    }
+    case RemoteEvents::TOGGLE:
+    {
+        LOG_INFO("Remote TOGGLE event\n");
+        toggleLedPower();
+        break;
+    }
+    case RemoteEvents::UP1:
+    {
+        LOG_INFO("Remote UP1 event\n");
+        increaseLedBrightness();
+        break;
+    }
+    case RemoteEvents::DOWN1:
+    {
+        LOG_INFO("Remote DOWN1 event\n");
+        decreaseLedBrightness();
+        break;
+    }
+    case RemoteEvents::UP2:
+    {
+        LOG_INFO("Remote UP2 event\n");
+        switch (LED_MODE)
+        {
+        case LED_MODES::CCT:
+            increaseLedColor();
+            break;
+        default:
+            increaseLedBrightness();
+        }
+        break;
+    }
+    case RemoteEvents::DOWN2:
+    {
+        LOG_INFO("Remote DOWN2 event\n");
+        switch (LED_MODE)
+        {
+        case LED_MODES::CCT:
+            decreaseLedColor();
+            break;
+        default:
+            decreaseLedBrightness();
+        }
+        break;
+    }
+    }
+}
+
+static void handleRadioPacket(uint8_t *buf, uint8_t &packetSize)
+{
+    // Handle the received packet
+    logRadioPacket(buf, packetSize);
+    RadioMessageReceived radioMessage(buf, packetSize);
+    radioMessage.print();
+    MessageTypes msgType = radioMessage.getMsgType();
+    switch (msgType)
+    {
+    case MessageTypes::REMOTE:
+    {
+        handleRemoteRadioMessage(radioMessage);
+        break;
+    }
+    default:
+    {
+        LOG_WARNING("Unknown message type: %i\n", (uint8_t)msgType);
+        break;
+    }
+    }
 }
 
 void radioLoop()
 {
-    static uint8_t buf[32];
+    uint8_t buf[32];
+    uint8_t packetSize = 0;
     if (radioInitialized)
     {
-        uint8_t packetSize = 0;
-        if (nrfListen(buf, packetSize))
+        if (_radioMsgReceived)
         {
-            logRadioPacket(buf, packetSize);
-            handleRadioPacket(buf, packetSize);
+            _radioMsgReceived = false;
+            while (nrfListen(buf, packetSize))
+            {
+                handleRadioPacket(buf, packetSize);
+            }
         }
     }
 }
@@ -170,4 +257,9 @@ void setRadioSettings(uint8_t channel, const char *radioAddress)
     radio.stopListening();
     delay(100);
     radioInit();
+}
+
+RemoteMap &getRemoteMap()
+{
+    return seenRemotes;
 }
