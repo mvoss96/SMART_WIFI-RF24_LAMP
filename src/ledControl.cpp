@@ -9,6 +9,8 @@ static Preferences preferences;
 static const int pins[] = {LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN};
 static const size_t numLEDs = sizeof(pins) / sizeof(pins[0]);
 static bool stateChanged = false;
+static uint32_t ledcTargetValues[numLEDs] = {0};
+static uint32_t ledcCurrentValues[numLEDs] = {0};
 
 // Callback function pointer for LED state change
 void (*ledCallback)(void) = NULL;
@@ -66,6 +68,28 @@ void ledInit()
     ledSet();
 }
 
+void ledUpdate()
+{
+    const int fadeStep = LED_FADE_STEP_SIZE;
+    for (int i = 0; i < numLEDs; i++)
+    {
+        int delta = ledcTargetValues[i] - ledcCurrentValues[i];
+        if (delta == 0)
+        {
+            continue; // Skip if no change needed
+        }
+        //Serial.printf("Current:%i, Target:%i, Delta: %i ", ledcCurrentValues[i], ledcTargetValues[i], delta);
+
+        // Adjust the new value by the fadeStep in the direction of the delta using the ternary operator
+        int step = (delta > 0) ? min(fadeStep, delta) : max(-fadeStep, delta);
+        uint32_t newVal = ledcCurrentValues[i] + step;
+        //Serial.printf("NewVal: %i\n", newVal);
+        ledcCurrentValues[i] = newVal;
+        ledcWrite(i, newVal);
+    }
+}
+
+
 int ledSet()
 {
     const uint16_t divider = 65535; // max for uint16_t
@@ -77,13 +101,13 @@ int ledSet()
     switch (LED_MODE)
     {
     case LED_MODES::SINGLE:
-        ledcWrite(0, ledSettings.power * ledSettings.brightness);
+        ledcTargetValues[0] = ledSettings.power * ledSettings.brightness;
         break;
     case LED_MODES::CCT:
         warmWhite = ledSettings.brightness * ledSettings.color / 1024;
         coldWhite = ledSettings.brightness * (1024 - ledSettings.color) / 1024;
-        ledcWrite(0, ledSettings.power * warmWhite);
-        ledcWrite(1, ledSettings.power * coldWhite);
+        ledcTargetValues[0] = ledSettings.power * warmWhite;
+        ledcTargetValues[1] = ledSettings.power * coldWhite;
         break;
     case LED_MODES::RGB:
     case LED_MODES::RGBW:
@@ -92,7 +116,7 @@ int ledSet()
 
         for (uint8_t i = 0; i < channelCount; ++i)
         {
-            ledcWrite(channels[i], ledSettings.power * ledSettings.brightness / divider * colors[i]);
+            ledcTargetValues[channels[i]] = ledSettings.power * ledSettings.brightness / divider * colors[i];
         }
         break;
     default:
@@ -144,11 +168,19 @@ void setLedBrightness(uint16_t brightness)
 
 void increaseLedBrightness()
 {
+    if (ledSettings.power == false)
+    {
+        return; // Do not increase brightness if LED is off
+    }
     setLedBrightness(min(ledSettings.brightness + BRIGHTNESS_STEP_SIZE, LED_MAX_VAL));
 }
 
 void decreaseLedBrightness()
 {
+    if (ledSettings.power == false)
+    {
+        return; // Do not decrease brightness if LED is off
+    }
     setLedBrightness(max(ledSettings.brightness - BRIGHTNESS_STEP_SIZE, MIN_BRIGHTNESS));
 }
 

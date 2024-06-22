@@ -28,11 +28,7 @@ RadioSettings radioSettings;
 IRAM_ATTR static void radioInterrupt()
 {
     bool tx_ds, dx_df, rx_dr;                // tx_ds = data sent, dx_df = data failed, rx_dr = data ready
-    radio.whatHappened(tx_ds, dx_df, rx_dr); // Reset the IRQ pin to High, allow for calling of available()
-    if (rx_dr)
-    {
-        _radioMsgReceived = true;
-    }
+    _radioMsgReceived = true;
 }
 
 static void loadRadioSettings()
@@ -128,42 +124,44 @@ static void handleRemoteRadioMessage(RadioMessageReceived &msg)
     {
     case RemoteEvents::ON:
     {
-        LOG_INFO("Remote ON event\n");
+        LOG_DEBUG("Remote ON event\n");
         setLedPower(true);
         break;
     }
     case RemoteEvents::OFF:
     {
-        LOG_INFO("Remote OFF event\n");
+        LOG_DEBUG("Remote OFF event\n");
         setLedPower(false);
         break;
     }
     case RemoteEvents::TOGGLE:
     {
-        LOG_INFO("Remote TOGGLE event\n");
+        LOG_DEBUG("Remote TOGGLE event\n");
         toggleLedPower();
         break;
     }
     case RemoteEvents::UP1:
     {
-        LOG_INFO("Remote UP1 event\n");
+        LOG_DEBUG("Remote UP1 event\n");
         increaseLedBrightness();
         break;
     }
     case RemoteEvents::DOWN1:
     {
-        LOG_INFO("Remote DOWN1 event\n");
+        LOG_DEBUG("Remote DOWN1 event\n");
         decreaseLedBrightness();
         break;
     }
     case RemoteEvents::UP2:
     {
-        LOG_INFO("Remote UP2 event\n");
+        LOG_DEBUG("Remote UP2 event\n");
         switch (LED_MODE)
         {
         case LED_MODES::CCT:
+        {
             increaseLedColor();
             break;
+        }
         default:
             increaseLedBrightness();
         }
@@ -171,14 +169,18 @@ static void handleRemoteRadioMessage(RadioMessageReceived &msg)
     }
     case RemoteEvents::DOWN2:
     {
-        LOG_INFO("Remote DOWN2 event\n");
+        LOG_DEBUG("Remote DOWN2 event\n");
         switch (LED_MODE)
         {
         case LED_MODES::CCT:
+        {
             decreaseLedColor();
             break;
+        }
         default:
+        {
             decreaseLedBrightness();
+        }
         }
         break;
     }
@@ -188,9 +190,9 @@ static void handleRemoteRadioMessage(RadioMessageReceived &msg)
 static void handleRadioPacket(uint8_t *buf, uint8_t &packetSize)
 {
     // Handle the received packet
-    logRadioPacket(buf, packetSize);
+    // logRadioPacket(buf, packetSize);
     RadioMessageReceived radioMessage(buf, packetSize);
-    radioMessage.print();
+    // radioMessage.print();
     MessageTypes msgType = radioMessage.getMsgType();
     switch (msgType)
     {

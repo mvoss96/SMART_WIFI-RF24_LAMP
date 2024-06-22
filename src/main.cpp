@@ -29,9 +29,12 @@ void radioTask(void *pvParameters)
   for (;;)
   {
     radioLoop();
-    vTaskDelay(1); // Delay for 1 tick to allow other tasks to run
+    ledUpdate();
+    vTaskDelay(10); // Delay to allow other tasks to run
   }
 }
+
+
 
 void setup()
 {
@@ -48,5 +51,4 @@ void setup()
 void loop()
 {
   wifiLoop();
-  radioLoop();
 }

@@ -42,8 +42,9 @@ inline const char *getLEDModeStr(LED_MODES mode)
 #define MQTT_PUBLISH_INTERVAL -1             // Interval between MQTT publishes in milliseconds (-1 for no interval)
 
 #define LED_MODE LED_MODES::SINGLE            // Set the LED mode
-#define BRIGHTNESS_STEP_SIZE LED_MAX_VAL / 10 // Number of brightness steps
-#define COLOR_STEP_SIZE LED_MAX_VAL / 10      // Number of color steps
+#define BRIGHTNESS_STEP_SIZE LED_MAX_VAL / 16 // Number of brightness steps
+#define COLOR_STEP_SIZE LED_MAX_VAL / 16      // Number of color steps
+#define LED_FADE_STEP_SIZE 20                 // LED fade step size
 #define MIN_BRIGHTNESS 5                      // Minimum brightness value
 #define LED1_PIN 3                            // Pin for LED1
 #define LED2_PIN -1                           // Pin for LED2 set to -1 if not used

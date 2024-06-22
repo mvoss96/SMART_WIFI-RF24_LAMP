@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFiManager.h>
+#include <ArduinoOTA.h>
 #include <WiFi.h>
 
 #include "chipID.h"
@@ -113,6 +114,7 @@ void handleWiFiConnection()
     if (WiFi.status() == WL_CONNECTED && !wifiStarted)
     {
         LOG_INFO("Connected to %s with IP %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+        ArduinoOTA.begin();
         wifiManager.startWebPortal(); // Start the WiFi portal if WiFi is connected and not yet started
         wifiStarted = true;           // Mark the WiFi as started
     }
@@ -126,7 +128,8 @@ void handleWiFiConnection()
     {
         wifiManager.startWebPortal(); //  Make sure the config portal stays active
     }
-
+    
+    ArduinoOTA.handle();
     wifiManager.process(); // Process WiFiManager tasks
 }
 

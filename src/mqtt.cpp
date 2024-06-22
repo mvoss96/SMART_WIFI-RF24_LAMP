@@ -87,6 +87,11 @@ static void mqttPublish()
     }
 }
 
+static void mqttHomeAssistandRemotesDiscovery()
+{
+    
+}
+
 static void mqttHomeAssistandDiscovery()
 {
     JsonDocument doc;
