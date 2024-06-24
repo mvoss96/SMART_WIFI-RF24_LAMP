@@ -18,6 +18,14 @@ static volatile bool _radioMsgReceived = false;
 static const auto RADIO_DATARATE = RF24_250KBPS;
 static char radioAddressStr[] = "00:00:00:00:00";
 
+// Callback function pointer for New Remote Event
+static void (*radioCallback)(void) = NULL;
+
+IRAM_ATTR void setRadioCallback(void (*callback)(void))
+{
+    radioCallback = callback;
+}
+
 struct RadioSettings
 {
     uint8_t channel;
@@ -27,7 +35,7 @@ RadioSettings radioSettings;
 
 IRAM_ATTR static void radioInterrupt()
 {
-    bool tx_ds, dx_df, rx_dr;                // tx_ds = data sent, dx_df = data failed, rx_dr = data ready
+    bool tx_ds, dx_df, rx_dr; // tx_ds = data sent, dx_df = data failed, rx_dr = data ready
     _radioMsgReceived = true;
 }
 
@@ -117,6 +125,15 @@ static void handleRemoteRadioMessage(RadioMessageReceived &msg)
     remote.batteryPercentage = remoteData.getBatteryPercentage();
     remote.batteryVoltage = remoteData.getBatteryVoltage();
     const uint32_t uuid = *((const uint32_t *)(remote.uuid));
+
+    // Check if the remote is new
+    if (seenRemotes.find(uuid) == seenRemotes.end())
+    {
+        if (radioCallback)
+        {
+            radioCallback();
+        }
+    }
     seenRemotes[uuid] = remote;
 
     // Handle the remote event

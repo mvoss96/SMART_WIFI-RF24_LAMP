@@ -13,7 +13,7 @@ static uint32_t ledcTargetValues[numLEDs] = {0};
 static uint32_t ledcCurrentValues[numLEDs] = {0};
 
 // Callback function pointer for LED state change
-void (*ledCallback)(void) = NULL;
+static void (*ledCallback)(void) = NULL;
 
 LEDSettings ledSettings;
 

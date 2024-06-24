@@ -20,7 +20,7 @@ static WiFiManagerParameter custom_mqtt_server("mqttServer", "MQTT Server", mqtt
 static WiFiManagerParameter custom_mqtt_port("mqttPort", "MQTT Port", String(mqttSettings.port).c_str(), 6);
 static WiFiManagerParameter custom_mqtt_username("mqttUsername", "MQTT Username", mqttSettings.username, 40);
 static WiFiManagerParameter custom_mqtt_password("mqttPassword", "MQTT Password", mqttSettings.password, 40);
-static WiFiManagerParameter custom_mqtt_topic("mqttTopic", "MQTT Topic", mqttSettings.topic, 40);
+static WiFiManagerParameter custom_mqtt_topic("mqttTopic", "MQTT Base Topic", mqttSettings.topic, 40);
 static WiFiManagerParameter customRadioChannel("radioChannel", "Radio Channel (0 -> 125)", String(getRadioChannel()).c_str(), 3);
 static WiFiManagerParameter customRadioAddress("radioAddress", "Radio Address (00:00:00:00:00)", getRadioAddressString(), sizeof("00:00:00:00:00"));
 

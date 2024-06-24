@@ -17,6 +17,14 @@ static WiFiClient espClient;
 static PubSubClient mqttClient(espClient);
 static Preferences preferences;
 static bool ledStateChange = false;
+static bool newRadioSeen = false;
+static char deviceTopic[64];
+
+static char* getDecviceTopic()
+{
+    snprintf(deviceTopic, sizeof(deviceTopic), "%s/%s", mqttSettings.topic, ChipID::getChipID());
+    return deviceTopic;
+}
 
 static void getMqttLightMessage(char *buff, size_t len)
 {
@@ -46,20 +54,27 @@ static void getMqttLightMessage(char *buff, size_t len)
     serializeJson(doc, buff, len);
 }
 
-static void getMQTTRemotesMessage(char *buff, size_t len)
+static void mqttRemotePublish()
 {
-    JsonDocument doc;
-    RemoteMap remoteMap = getRemoteMap();
-    for (auto r : remoteMap)
+    for (auto r : getRemoteMap())
     {
-        char key[32];
-        snprintf(key, sizeof(key), "%i", r.first);
-        String uuid = String(r.second.uuid[0], HEX) + String(r.second.uuid[1], HEX) + String(r.second.uuid[2], HEX) + String(r.second.uuid[3], HEX);
-        JsonObject remotes = doc[uuid].to<JsonObject>();
-        remotes["batteryPercentage"] = String(r.second.batteryPercentage) + "%";
-        remotes["batteryVoltage"] = String(r.second.batteryVoltage) + "mV";
+        JsonDocument doc;
+        char uuid[9];
+        char buff[128];
+        sprintf(uuid, "%02X%02X%02X%02X", r.second.uuid[0], r.second.uuid[1], r.second.uuid[2], r.second.uuid[3]);
+        
+        doc["battery"] = String(r.second.batteryPercentage) + "%";
+        doc["batteryVoltage"] = String(r.second.batteryVoltage) + "mV";
+
+        serializeJson(doc, buff, sizeof(buff));
+        char topic[64];
+        snprintf(topic, sizeof(topic), "%s/%s", mqttSettings.topic, uuid);
+        log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, buff);
+        if (!mqttClient.publish(topic, buff))
+        {
+            LOG_ERROR("MQTT publish failed for remote: %s\n", uuid);
+        }
     }
-    serializeJson(doc, buff, len);
 }
 
 static void mqttPublish()
@@ -71,25 +86,46 @@ static void mqttPublish()
     }
     char buffPayload[128];
     getMqttLightMessage(buffPayload, sizeof(buffPayload));
-    char topic[sizeof(mqttSettings.topic) + sizeof("/light")];
-    snprintf(topic, sizeof(topic), "%s/light", mqttSettings.topic);
+    char topic[64];
+    snprintf(topic, sizeof(topic), "%s/light", getDecviceTopic());
     log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, buffPayload);
     if (!mqttClient.publish(topic, buffPayload))
     {
         LOG_ERROR("MQTT publish failed\n");
     }
-    getMQTTRemotesMessage(buffPayload, sizeof(buffPayload));
-    snprintf(topic, sizeof(topic), "%s/remotes", mqttSettings.topic);
-    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, buffPayload);
-    if (!mqttClient.publish(topic, buffPayload))
-    {
-        LOG_ERROR("MQTT publish failed\n");
-    }
+    mqttRemotePublish();
 }
 
 static void mqttHomeAssistandRemotesDiscovery()
 {
-    
+    JsonDocument doc;
+    RemoteMap remoteMap = getRemoteMap();
+    for (auto r : remoteMap)
+    {
+        String uuid = String(r.second.uuid[0], HEX) + String(r.second.uuid[1], HEX) + String(r.second.uuid[2], HEX) + String(r.second.uuid[3], HEX);
+        doc["name"] = "battery";
+        doc["device_class"] = "battery";
+        doc["unit_of_measurement"] = "%";
+        doc["state_topic"] = String(mqttSettings.topic) + "/remotes/" + uuid;
+        doc["unique_id"] = "RF24-Remote-" + uuid;
+        doc["device"]["manufacturer"] = "MarcusVoss";
+        doc["device"]["model"] = "RF24-Remote";
+        doc["device"]["name"] = "RF24-Remote-" + uuid;
+        doc["schema"] = "json";
+        doc["device"]["identifiers"][0] = "RF24-Remote-" + uuid;
+        String payload;
+        serializeJson(doc, payload);
+        String topic = "homeassistant/sensor/RF24-Remote-" + uuid + "/battery/config";
+        bool res = mqttClient.publish(topic.c_str(), payload.c_str(), false);
+        if (res)
+        {
+            LOG_INFO("MQTT Home Assistant Remote Discovery published\n");
+        }
+        else
+        {
+            LOG_ERROR("MQTT Home Assistant Remote Discovery failed\n");
+        }
+    }
 }
 
 static void mqttHomeAssistandDiscovery()
@@ -122,20 +158,21 @@ static void mqttHomeAssistandDiscovery()
     doc["configuration_url"] = WiFi.localIP().toString();
     doc["brightness"] = true;
     doc["brightness_scale"] = 1023,
-    doc["command_topic"] = String(mqttSettings.topic) + "/set";
-    doc["availability_topic"] = String(mqttSettings.topic) + "/status";
+    doc["command_topic"] = String(getDecviceTopic()) + "/set";
+    doc["availability_topic"] = String(getDecviceTopic()) + "/status";
     doc["device"]["manufacturer"] = "MarcusVoss";
     doc["device"]["model"] = MODELNAME;
     doc["device"]["name"] = DEVICENAME;
     doc["device"]["sw_version"] = SW_VERSION;
+    doc["device"]["identifiers"][0] = ChipID::getChipID();
     doc["name"] = "Light";
     doc["schema"] = "json";
-    doc["state_topic"] = String(mqttSettings.topic) + "/light";
+    doc["state_topic"] = String(getDecviceTopic()) + "/light";
     doc["unique_id"] = ChipID::getChipID();
 
     String payload;
     serializeJson(doc, payload);
-    String topic = "homeassistant/light/" + String(mqttSettings.topic) + "/config";
+    String topic = "homeassistant/light/" + String(ChipID::getChipID()) + "/config";
     bool res = mqttClient.publish(topic.c_str(), payload.c_str(), false);
     if (res)
     {
@@ -163,6 +200,7 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
     if (strcmp(topic, "homeassistant/status") == 0 && strcasecmp((char *)payload, "online") == 0)
     {
         mqttHomeAssistandDiscovery();
+        mqttHomeAssistandRemotesDiscovery();
         return;
     }
 
@@ -208,17 +246,19 @@ static void mqttConnect()
 
     mqttClient.setServer(mqttSettings.server, mqttSettings.port);
     mqttClient.setCallback(mqttCallback);
-    if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password, (String(mqttSettings.topic) + "/status").c_str(), 1, true, "offline"))
+    if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password, (String(getDecviceTopic()) + "/status").c_str(), 1, true, "offline"))
     {
         mqttClient.setBufferSize(1024);
-        mqttClient.subscribe((String(mqttSettings.topic) + "/set").c_str()); // Subscribe to the set topic
+        mqttClient.subscribe((String(getDecviceTopic()) + "/set").c_str()); // Subscribe to the set topic
         mqttClient.subscribe("homeassistant/status");                        // Subscribe to the homeassistant status topic
         setLedCallback([]()
                        { ledStateChange = true; });
+        setRadioCallback([]()
+                         { newRadioSeen = true; });
         LOG_INFO("MQTT connected\n");
         delay(100);
         mqttHomeAssistandDiscovery();
-        mqttClient.publish((String(mqttSettings.topic) + "/status").c_str(), "online", true);
+        mqttClient.publish((String(getDecviceTopic()) + "/status").c_str(), "online", true);
     }
     else
     {
@@ -254,6 +294,11 @@ void handleMQTTConnection()
         mqttPublish(); // Publish data to MQTT
         lastPublishTime = millis();
         ledStateChange = false;
+    }
+    if (newRadioSeen)
+    {
+        mqttHomeAssistandRemotesDiscovery();
+        newRadioSeen = false;
     }
     mqttClient.loop(); // Allow MQTT client to process incoming and outgoing messages
 }

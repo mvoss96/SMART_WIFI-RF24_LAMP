@@ -16,3 +16,4 @@ bool radioIsInitialized();
 char* getRadioAddressString();
 uint8_t getRadioChannel(); 
 RemoteMap& getRemoteMap();
+void setRadioCallback(void (*callback)(void));
