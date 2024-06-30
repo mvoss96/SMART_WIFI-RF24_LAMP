@@ -3,6 +3,8 @@
 
 namespace ChipID {
     const char* getChipID();
-    const char* getShortChipID();
 }
+
+const char *getDeviceName();
+void setDeviceName(const char *name);
 

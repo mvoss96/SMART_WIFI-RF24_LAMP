@@ -78,17 +78,16 @@ void ledUpdate()
         {
             continue; // Skip if no change needed
         }
-        //Serial.printf("Current:%i, Target:%i, Delta: %i ", ledcCurrentValues[i], ledcTargetValues[i], delta);
+        // Serial.printf("Current:%i, Target:%i, Delta: %i ", ledcCurrentValues[i], ledcTargetValues[i], delta);
 
         // Adjust the new value by the fadeStep in the direction of the delta using the ternary operator
         int step = (delta > 0) ? min(fadeStep, delta) : max(-fadeStep, delta);
         uint32_t newVal = ledcCurrentValues[i] + step;
-        //Serial.printf("NewVal: %i\n", newVal);
+        // Serial.printf("NewVal: %i\n", newVal);
         ledcCurrentValues[i] = newVal;
         ledcWrite(i, newVal);
     }
 }
-
 
 int ledSet()
 {
@@ -187,6 +186,17 @@ void decreaseLedBrightness()
 uint16_t getLedColor()
 {
     return ledSettings.color;
+}
+
+uint16_t getLedColorTemperature()
+{
+    // Calculate color temperature in mireds
+    return (uint16_t)(0.5 + (float)(ledSettings.color) * (MAX_MIREDS - MIN_MIREDS) / LED_MAX_VAL + MIN_MIREDS);
+}
+
+void setLedColorTemperature(uint16_t mireds)
+{
+    setLedColor((uint16_t)(0.5 + (float)(mireds - MIN_MIREDS) * LED_MAX_VAL / (MAX_MIREDS - MIN_MIREDS)));
 }
 
 void setLedColor(uint16_t color)

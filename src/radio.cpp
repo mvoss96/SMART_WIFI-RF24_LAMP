@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <RF24.h>
+#include <WiFi.h>
 
 #include "radio.h"
 #include "chipID.h"
@@ -41,14 +42,15 @@ IRAM_ATTR static void radioInterrupt()
 
 static void loadRadioSettings()
 {
-    const char *shortChipID = ChipID::getShortChipID();
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
     preferences.begin("radio_config", false);
     radioSettings.channel = preferences.getInt("channel", 100);
-    radioSettings.radioAddress[0] = preferences.getUChar("radioAddress0", shortChipID[2]);
-    radioSettings.radioAddress[1] = preferences.getUChar("radioAddress1", shortChipID[3]);
-    radioSettings.radioAddress[2] = preferences.getUChar("radioAddress2", shortChipID[4]);
-    radioSettings.radioAddress[3] = preferences.getUChar("radioAddress3", shortChipID[5]);
-    radioSettings.radioAddress[4] = preferences.getUChar("radioAddress4", 0);
+    radioSettings.radioAddress[0] = preferences.getUChar("radioAddress0", mac[1]);
+    radioSettings.radioAddress[1] = preferences.getUChar("radioAddress1", mac[2]);
+    radioSettings.radioAddress[2] = preferences.getUChar("radioAddress2", mac[3]);
+    radioSettings.radioAddress[3] = preferences.getUChar("radioAddress3", mac[4]);
+    radioSettings.radioAddress[4] = preferences.getUChar("radioAddress4", mac[5]);
     preferences.end();
     LOG_INFO("Loaded Radio settings: Channel: %i, Radio Address: %02X:%02X:%02X:%02X:%02X\n",
              radioSettings.channel, radioSettings.radioAddress[0], radioSettings.radioAddress[1], radioSettings.radioAddress[2], radioSettings.radioAddress[3], radioSettings.radioAddress[4]);
@@ -56,6 +58,7 @@ static void loadRadioSettings()
 
 void radioInit()
 {
+    loadRadioSettings();                                  // Load the radio settings
     if (!radio.begin())
     {
         LOG_ERROR("RF24Radio Connection Error!\n");
@@ -67,7 +70,6 @@ void radioInit()
     radio.maskIRQ(true, true, false); // args = "data_sent", "data_fail", "data_ready"
     attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), radioInterrupt, FALLING);
 
-    loadRadioSettings();                                  // Load the radio settings
     radio.setChannel(radioSettings.channel);              // Set the channel
     radio.setPALevel(RF24_PA_LOW);                        // Adjust power level
     radio.setAddressWidth(5);                             // Set address width

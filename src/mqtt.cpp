@@ -20,7 +20,7 @@ static bool ledStateChange = false;
 static bool newRadioSeen = false;
 static char deviceTopic[64];
 
-static char* getDecviceTopic()
+static char *getDecviceTopic()
 {
     snprintf(deviceTopic, sizeof(deviceTopic), "%s/%s", mqttSettings.topic, ChipID::getChipID());
     return deviceTopic;
@@ -35,7 +35,8 @@ static void getMqttLightMessage(char *buff, size_t len)
     doc["brightness"] = getLedBrightness();
     if (LED_MODE == LED_MODES::CCT)
     {
-        doc["color"] = getLedColor();
+        doc["color_mode"] = "color_temp";
+        doc["color_temp"] = getLedColorTemperature();
     }
     else if (LED_MODE == LED_MODES::RGB || LED_MODE == LED_MODES::RGBW || LED_MODE == LED_MODES::RGBWW)
     {
@@ -62,7 +63,7 @@ static void mqttRemotePublish()
         char uuid[9];
         char buff[128];
         sprintf(uuid, "%02X%02X%02X%02X", r.second.uuid[0], r.second.uuid[1], r.second.uuid[2], r.second.uuid[3]);
-        
+
         doc["battery"] = String(r.second.batteryPercentage);
         doc["batteryVoltage"] = String(r.second.batteryVoltage);
 
@@ -98,7 +99,7 @@ static void mqttPublish()
 
 static void mqttRemotesHomeAssistandDiscovery()
 {
-    
+
     RemoteMap remoteMap = getRemoteMap();
     for (auto r : remoteMap)
     {
@@ -175,6 +176,8 @@ static void mqttHomeAssistandDiscovery()
         break;
     case LED_MODES::CCT:
         colorModes.add("color_temp");
+        doc["max_mireds"] = MAX_MIREDS;
+        doc["min_mireds"] = MIN_MIREDS;
         break;
     case LED_MODES::RGB:
         colorModes.add("rgb");
@@ -198,7 +201,7 @@ static void mqttHomeAssistandDiscovery()
     doc["availability_topic"] = String(getDecviceTopic()) + "/status";
     doc["device"]["manufacturer"] = "MarcusVoss";
     doc["device"]["model"] = MODELNAME;
-    doc["device"]["name"] = DEVICENAME;
+    doc["device"]["name"] = getDeviceName();
     doc["device"]["sw_version"] = SW_VERSION;
     doc["device"]["identifiers"][0] = ChipID::getChipID();
     doc["name"] = "Light";
@@ -269,6 +272,11 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
         uint16_t brightness = doc["brightness"];
         setLedBrightness(brightness);
     }
+    if (LED_MODE == LED_MODES::CCT && doc.containsKey("color_temp"))
+    {
+        uint16_t color_temp = doc["color_temp"];
+        setLedColorTemperature(color_temp);
+    }
 }
 
 static void mqttConnect()
@@ -286,7 +294,7 @@ static void mqttConnect()
     {
         mqttClient.setBufferSize(1024);
         mqttClient.subscribe((String(getDecviceTopic()) + "/set").c_str()); // Subscribe to the set topic
-        mqttClient.subscribe("homeassistant/status");                        // Subscribe to the homeassistant status topic
+        mqttClient.subscribe("homeassistant/status");                       // Subscribe to the homeassistant status topic
         setLedCallback([]()
                        { ledStateChange = true; });
         setRadioCallback([]()
@@ -349,6 +357,7 @@ static void saveMqttSettings()
 {
     LOG_INFO("Saving MQTT settings\n");
     preferences.begin("mqtt_config", false);
+    preferences.putString("deviceName", getDeviceName());
     preferences.putString("mqttServer", mqttSettings.server);
     preferences.putString("mqttUsername", mqttSettings.username);
     preferences.putString("mqttPassword", mqttSettings.password);
@@ -372,11 +381,16 @@ void setMqttSettings(const char *server, const unsigned int port, const char *us
 static void loadMQTTsettings()
 {
     preferences.begin("mqtt_config", false);
+    char deviceName[32];
+    if (preferences.getString("deviceName", deviceName, sizeof(deviceName)))
+    {
+        setDeviceName(deviceName);
+    }
     strcpy(mqttSettings.server, preferences.getString("mqttServer", "").c_str());
     mqttSettings.port = preferences.getInt("mqttPort", 1883);
     strcpy(mqttSettings.username, preferences.getString("mqttUsername", "").c_str());
     strcpy(mqttSettings.password, preferences.getString("mqttPassword", "").c_str());
-    strcpy(mqttSettings.topic, preferences.getString("mqttTopic", ChipID::getChipID()).c_str());
+    strcpy(mqttSettings.topic, preferences.getString("mqttTopic", "").c_str());
     preferences.end();
     LOG_INFO("MQTT Settings loaded: Server: %s Port: %i Username: %s Password: %s Topic: %s\n",
              mqttSettings.server, mqttSettings.port, mqttSettings.username, mqttSettings.password, mqttSettings.topic);

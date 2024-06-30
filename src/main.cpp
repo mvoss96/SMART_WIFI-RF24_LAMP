@@ -22,6 +22,13 @@
 //   Serial.printf("Free PSRAM: %u bytes\n", FreePSRAM);
 // }
 
+void printSpiPins()
+{
+  Serial.printf("MISO: %d\n", MISO);
+  Serial.printf("MOSI: %d\n", MOSI);
+  Serial.printf("SCK: %d\n", SCK);
+}
+
 // radio task
 void radioTask(void *pvParameters)
 {
@@ -34,12 +41,10 @@ void radioTask(void *pvParameters)
   }
 }
 
-
-
 void setup()
 {
   Serial.begin(115200);
-  delay(100); // Wait for the serial connection to be establised
+  delay(100); // Wait for the serial connection to be established
   Serial.print("\n\ncompile time: ");
   Serial.println(__DATE__ " " __TIME__);
   Serial.println(ChipID::getChipID());

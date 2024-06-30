@@ -11,11 +11,12 @@
 #include "logging.h"
 
 char chipIdStr[32];
-
 bool wifiStarted = false;
 static long wifiReconnectTimer = 0;
 
+
 static WiFiManager wifiManager;
+static WiFiManagerParameter custom_device_name("deviceName", "Device Name", getDeviceName(), 40);
 static WiFiManagerParameter custom_mqtt_server("mqttServer", "MQTT Server", mqttSettings.server, 40);
 static WiFiManagerParameter custom_mqtt_port("mqttPort", "MQTT Port", String(mqttSettings.port).c_str(), 6);
 static WiFiManagerParameter custom_mqtt_username("mqttUsername", "MQTT Username", mqttSettings.username, 40);
@@ -54,6 +55,7 @@ const String translateWiFiStatus(wl_status_t status)
 
 void saveParamsCallback()
 {
+    setDeviceName(custom_device_name.getValue());
     setMqttSettings(custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()), custom_mqtt_username.getValue(), custom_mqtt_password.getValue(), custom_mqtt_topic.getValue());
     setRadioSettings(atoi(customRadioChannel.getValue()), customRadioAddress.getValue());
     //ESP.restart(); // Restart the device to apply the new settings
@@ -69,6 +71,7 @@ void wifiInit()
     mqttInit(); // Initialize MQTT settings and load settings from preferences
 
     // Load MQTT settings into WifiManager
+    custom_device_name.setValue(getDeviceName(), 40);
     custom_mqtt_server.setValue(mqttSettings.server, 40);
     custom_mqtt_port.setValue(String(mqttSettings.port).c_str(), 6);
     custom_mqtt_username.setValue(mqttSettings.username, 40);
@@ -77,6 +80,7 @@ void wifiInit()
     customRadioChannel.setValue(String(getRadioChannel()).c_str(), 3);
     customRadioAddress.setValue(getRadioAddressString(), sizeof("00:00:00:00:00"));
 
+    wifiManager.addParameter(&custom_device_name);
     wifiManager.addParameter(&custom_mqtt_server);
     wifiManager.addParameter(&custom_mqtt_port);
     wifiManager.addParameter(&custom_mqtt_username);
@@ -121,7 +125,7 @@ void handleWiFiConnection()
     else if (WiFi.status() == WL_DISCONNECTED && millis() - wifiReconnectTimer > WIFI_RECONNECT_ATTEMPT_INTERVAL && wifiManager.getWiFiIsSaved())
     {
         wifiManager.setEnableConfigPortal(false); // Disable the configuration portal
-        wifiManager.autoConnect(DEVICENAME);      // Attempt to automatically connect to WiFi
+        wifiManager.autoConnect(getDeviceName());      // Attempt to automatically connect to WiFi
         wifiReconnectTimer = millis();            // Reset the timer after a connection attempt
     }
     else if (wifiStarted && !wifiManager.getConfigPortalActive())

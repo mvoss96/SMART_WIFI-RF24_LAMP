@@ -32,6 +32,8 @@ uint16_t getLedColor();
 void setLedColor(uint16_t color);
 void increaseLedColor();
 void decreaseLedColor();
+uint16_t getLedColorTemperature();
+void setLedColorTemperature(uint16_t mireds);
 
 uint16_t getLedRed();
 void setLedRed(uint16_t red);
