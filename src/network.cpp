@@ -58,6 +58,7 @@ void saveParamsCallback()
     setDeviceName(custom_device_name.getValue());
     setMqttSettings(custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()), custom_mqtt_username.getValue(), custom_mqtt_password.getValue(), custom_mqtt_topic.getValue());
     setRadioSettings(atoi(customRadioChannel.getValue()), customRadioAddress.getValue());
+    wifiManager.setTitle(getDeviceName());
     //ESP.restart(); // Restart the device to apply the new settings
 }
 
@@ -80,6 +81,7 @@ void wifiInit()
     customRadioChannel.setValue(String(getRadioChannel()).c_str(), 3);
     customRadioAddress.setValue(getRadioAddressString(), sizeof("00:00:00:00:00"));
 
+    wifiManager.setTitle(getDeviceName());
     wifiManager.addParameter(&custom_device_name);
     wifiManager.addParameter(&custom_mqtt_server);
     wifiManager.addParameter(&custom_mqtt_port);

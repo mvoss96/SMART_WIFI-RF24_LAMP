@@ -22,12 +22,12 @@
 //   Serial.printf("Free PSRAM: %u bytes\n", FreePSRAM);
 // }
 
-void printSpiPins()
-{
-  Serial.printf("MISO: %d\n", MISO);
-  Serial.printf("MOSI: %d\n", MOSI);
-  Serial.printf("SCK: %d\n", SCK);
-}
+// void printSpiPins()
+// {
+//   Serial.printf("MISO: %d\n", MISO);
+//   Serial.printf("MOSI: %d\n", MOSI);
+//   Serial.printf("SCK: %d\n", SCK);
+// }
 
 // radio task
 void radioTask(void *pvParameters)

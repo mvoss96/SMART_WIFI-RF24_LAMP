@@ -228,16 +228,21 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
 {
     Serial.print("Message arrived [");
     Serial.print(topic);
-    Serial.print("] ");
+    Serial.print("] payload: ");
+    payload[length] = '\0'; // Null terminate the payload
     for (int i = 0; i < length; i++)
     {
         Serial.print((char)payload[i]);
     }
     Serial.println();
 
+    Serial.println(strcmp(topic, "homeassistant/status"));
+    Serial.println(strcasecmp((char *)payload, "online"));
+
     // Resend Home Assistant Discovery message if Home Assistant status recieved is "online"
     if (strcmp(topic, "homeassistant/status") == 0 && strcasecmp((char *)payload, "online") == 0)
     {
+        LOG_INFO("Home Assistant status online, resending MQTT Discovery\n");
         mqttHomeAssistandDiscovery();
         mqttRemotesHomeAssistandDiscovery();
         return;
