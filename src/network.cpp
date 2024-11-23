@@ -14,7 +14,6 @@ char chipIdStr[32];
 bool wifiStarted = false;
 static long wifiReconnectTimer = 0;
 
-
 static WiFiManager wifiManager;
 static WiFiManagerParameter custom_device_name("deviceName", "Device Name", getDeviceName(), 40);
 static WiFiManagerParameter custom_mqtt_server("mqttServer", "MQTT Server", mqttSettings.server, 40);
@@ -24,7 +23,6 @@ static WiFiManagerParameter custom_mqtt_password("mqttPassword", "MQTT Password"
 static WiFiManagerParameter custom_mqtt_topic("mqttTopic", "MQTT Base Topic", mqttSettings.topic, 40);
 static WiFiManagerParameter customRadioChannel("radioChannel", "Radio Channel (0 -> 125)", String(getRadioChannel()).c_str(), 3);
 static WiFiManagerParameter customRadioAddress("radioAddress", "Radio Address (00:00:00:00:00)", getRadioAddressString(), sizeof("00:00:00:00:00"));
-
 
 const String translateWiFiStatus(wl_status_t status)
 {
@@ -59,15 +57,15 @@ void saveParamsCallback()
     setMqttSettings(custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()), custom_mqtt_username.getValue(), custom_mqtt_password.getValue(), custom_mqtt_topic.getValue());
     setRadioSettings(atoi(customRadioChannel.getValue()), customRadioAddress.getValue());
     wifiManager.setTitle(getDeviceName());
-    //ESP.restart(); // Restart the device to apply the new settings
+    // ESP.restart(); // Restart the device to apply the new settings
 }
 
 void wifiInit()
 {
     const char *chipID = ChipID::getChipID();
     WiFi.hostname(chipID);
-    WiFi.begin(); // Start WiFi connection
-    WiFi.setTxPower(WIFI_POWER_8_5dBm); //Reduce WIFI poweer for copmpatibility with some devices
+    WiFi.begin();                       // Start WiFi connection
+    WiFi.setTxPower(WIFI_POWER_8_5dBm); // Reduce WIFI poweer for copmpatibility with some devices
     int txPower = WiFi.getTxPower();
     mqttInit(); // Initialize MQTT settings and load settings from preferences
 
@@ -81,7 +79,7 @@ void wifiInit()
     customRadioChannel.setValue(String(getRadioChannel()).c_str(), 3);
     customRadioAddress.setValue(getRadioAddressString(), sizeof("00:00:00:00:00"));
 
-    wifiManager.setTitle(getDeviceName());
+    wifiManager.setTitle(String(getDeviceName()) + " (" + SW_VERSION + ")");
     wifiManager.addParameter(&custom_device_name);
     wifiManager.addParameter(&custom_mqtt_server);
     wifiManager.addParameter(&custom_mqtt_port);
@@ -99,6 +97,7 @@ void wifiInit()
     wifiManager.setMenu(menu, 3);
     wifiManager.setClass("invert");
     delay(1000); // Wait for WiFi to initialize
+
     // Start WiFiManager if no WiFi credentials are saved
     if (wifiManager.getWiFiIsSaved())
     {
@@ -116,26 +115,51 @@ void wifiInit()
 
 void handleWiFiConnection()
 {
-    // Check and handle WiFi connection status
-    if (WiFi.status() == WL_CONNECTED && !wifiStarted)
+    if (WiFi.status() == WL_CONNECTED)
     {
-        LOG_INFO("Connected to %s with IP %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-        ArduinoOTA.begin();
-        wifiManager.startWebPortal(); // Start the WiFi portal if WiFi is connected and not yet started
-        wifiStarted = true;           // Mark the WiFi as started
+        // If WiFi is connected
+        if (!wifiStarted)
+        {
+            // Initial setup when WiFi connects for the first time
+            LOG_INFO("Connected to %s with IP %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+            ArduinoOTA.begin();           // Start OTA updates
+            wifiManager.startWebPortal(); // Start the WiFi portal
+            wifiStarted = true;           // Mark WiFi as started
+        }
+        else if (!wifiManager.getConfigPortalActive())
+        {
+            // Ensure the configuration portal remains active
+            LOG_INFO("Starting web portal\n");
+            wifiManager.startWebPortal();
+        }
+        ArduinoOTA.handle(); // Handle OTA updates
     }
-    else if (WiFi.status() == WL_DISCONNECTED && millis() - wifiReconnectTimer > WIFI_RECONNECT_ATTEMPT_INTERVAL && wifiManager.getWiFiIsSaved())
+    else
     {
-        wifiManager.setEnableConfigPortal(false); // Disable the configuration portal
-        wifiManager.autoConnect(getDeviceName());      // Attempt to automatically connect to WiFi
-        wifiReconnectTimer = millis();            // Reset the timer after a connection attempt
+        // If WiFi is not connected
+        if (millis() - wifiReconnectTimer > WIFI_RECONNECT_ATTEMPT_INTERVAL && wifiManager.getWiFiIsSaved())
+        {
+            // Attempt to reconnect if the reconnection interval has passed
+            LOG_INFO("Attempting to reconnect to WiFi\n");
+            wifiManager.setEnableConfigPortal(false); // Disable the configuration portal
+            wifiManager.autoConnect(getDeviceName()); // Attempt to reconnect to WiFi
+            wifiReconnectTimer = millis();            // Reset the reconnect timer
+        }
     }
-    else if (wifiStarted && !wifiManager.getConfigPortalActive())
+
+    // Print WiFi status every 10 seconds
+    static long lastTime = 0;
+    if (millis() - lastTime > 10000)
     {
-        wifiManager.startWebPortal(); //  Make sure the config portal stays active
+        lastTime = millis();
+        LOG_INFO("---------------------WIFI-STATUS------------------\n");
+        LOG_INFO("wifiStarted: %d, getConfigPortalActive: %d wifiReconnectTimer %d, wifiManager.getWiFiIsSaved: %d\n", wifiStarted, wifiManager.getConfigPortalActive(), wifiReconnectTimer, wifiManager.getWiFiIsSaved());
+        LOG_INFO("WiFi status: %s\n", translateWiFiStatus(WiFi.status()).c_str());
+        LOG_INFO("WiFi SSID: %s\n", WiFi.SSID().c_str());
+        LOG_INFO("WiFi IP: %s\n", WiFi.localIP().toString().c_str());
+        LOG_INFO("--------------------------------------------------\n");
     }
-    
-    ArduinoOTA.handle();
+
     wifiManager.process(); // Process WiFiManager tasks
 }
 

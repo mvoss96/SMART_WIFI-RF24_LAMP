@@ -30,7 +30,7 @@ inline const char *getLEDModeStr(LED_MODES mode)
 }
 
 // Configuration
-#define SW_VERSION "1.0.2"                   // Software version
+#define SW_VERSION "1.0.3"                   // Software version
 #define MODELNAME "SMART WIFI-RF24 Lamp"     // Model name used as default device name
 #define WIFI_RECONNECT_ATTEMPT_INTERVAL 2000 // Interval between WiFi reconnection attempts in milliseconds
 #define MQTT_RECONNECT_ATTEMPT_INTERVAL 5000 // Interval between MQTT reconnection attempts in milliseconds
