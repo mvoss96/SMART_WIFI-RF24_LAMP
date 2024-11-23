@@ -1,6 +1,7 @@
 #pragma once
-
 #define LOG_BUFFER_SIZE 256 // Buffer size for the log message
+
+#include <cstdint>
 
 // Enum for log levels
 enum class LOG_LEVEL : uint8_t

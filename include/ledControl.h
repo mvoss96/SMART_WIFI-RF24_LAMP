@@ -1,6 +1,8 @@
 #pragma once
-#include <cstdint>
+
 #include "config.h"
+
+#include <cstdint>
 
 void ledInit();
 int ledSet();

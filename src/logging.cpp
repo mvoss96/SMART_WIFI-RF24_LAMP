@@ -1,5 +1,6 @@
-#include <Arduino.h>
 #include "logging.h"
+
+#include <Arduino.h>
 
 // Function to get log level string
 static const char *getLogLevelString(LOG_LEVEL level)

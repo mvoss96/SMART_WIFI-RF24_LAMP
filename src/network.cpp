@@ -1,14 +1,14 @@
-#include <Arduino.h>
-#include <WiFiManager.h>
-#include <ArduinoOTA.h>
-#include <WiFi.h>
-
 #include "chipID.h"
 #include "config.h"
 #include "network.h"
 #include "mqtt.h"
 #include "radio.h"
 #include "logging.h"
+
+#include <Arduino.h>
+#include <WiFiManager.h>
+#include <ArduinoOTA.h>
+#include <WiFi.h>
 
 char chipIdStr[32];
 bool wifiStarted = false;
@@ -126,7 +126,7 @@ void handleWiFiConnection()
             wifiManager.startWebPortal(); // Start the WiFi portal
             wifiStarted = true;           // Mark WiFi as started
         }
-        else if (!wifiManager.getConfigPortalActive())
+        else if (!wifiManager.getWebPortalActive())
         {
             // Ensure the configuration portal remains active
             LOG_INFO("Starting web portal\n");

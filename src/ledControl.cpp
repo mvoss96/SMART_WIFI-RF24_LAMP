@@ -1,8 +1,9 @@
-#include <Arduino.h>
-#include <Preferences.h>
 #include "ledControl.h"
 #include "config.h"
 #include "logging.h"
+
+#include <Arduino.h>
+#include <Preferences.h>
 
 static Preferences preferences;
 
@@ -59,9 +60,8 @@ void ledInit()
     {
         if (pins[i] != -1)
         {
-            ledcSetup(i, LED_PWM_FREQUENCY, 10);
-            ledcAttachPin(pins[i], i);
-            ledcWrite(i, 0);
+            ledcAttach(pins[i], LED_PWM_FREQUENCY, 10);
+            ledcWrite(pins[i], 0);
         }
     }
     loadLedSettings();
@@ -85,7 +85,7 @@ void ledUpdate()
         uint32_t newVal = ledcCurrentValues[i] + step;
         // Serial.printf("NewVal: %i\n", newVal);
         ledcCurrentValues[i] = newVal;
-        ledcWrite(i, newVal);
+        ledcWrite(pins[i], newVal);
     }
 }
 

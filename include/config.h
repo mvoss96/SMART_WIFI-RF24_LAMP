@@ -1,6 +1,6 @@
 #pragma once
-
 #define LED_MAX_VAL 1024 // Maximum value for LED brightness and color (1024 for 10-bit PWM) DO NOT CHANGE
+
 enum class LED_MODES
 {
     SINGLE, // Single color LED (LED1)
@@ -27,7 +27,7 @@ inline const char *getLEDModeStr(LED_MODES mode)
     default:
         return "UNKNOWN";
     }
-}
+};
 
 // Configuration
 #define SW_VERSION "1.0.3"                   // Software version

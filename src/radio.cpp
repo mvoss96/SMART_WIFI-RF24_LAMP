@@ -1,14 +1,14 @@
-#include <Arduino.h>
-#include <Preferences.h>
-#include <RF24.h>
-#include <WiFi.h>
-
 #include "radio.h"
 #include "chipID.h"
 #include "config.h"
 #include "logging.h"
 #include "radioMessage.h"
 #include "ledControl.h"
+
+#include <Arduino.h>
+#include <Preferences.h>
+#include <RF24.h>
+#include <WiFi.h>
 
 static RF24 radio(PIN_RADIO_CE, PIN_RADIO_CSN);
 static Preferences preferences;

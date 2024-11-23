@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <unordered_map>
+
 struct Remote
 {
     uint8_t uuid[4];

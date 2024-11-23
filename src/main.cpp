@@ -1,9 +1,9 @@
-#include <Arduino.h>
-
-#include "network.h"
+#include "wifiFunctions.h"
 #include "ledControl.h"
 #include "radio.h"
 #include "chipID.h"
+
+#include <Arduino.h>
 
 // void printMemoryInfo(){
 //   uint32_t flashSize = ESP.getFlashChipSize();

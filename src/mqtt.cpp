@@ -1,14 +1,14 @@
-#include <WiFi.h>
-#include <PubSubClient.h>
-#include <Preferences.h>
-#include <ArduinoJson.h>
-
 #include "logging.h"
 #include "config.h"
 #include "chipID.h"
 #include "mqtt.h"
 #include "radio.h"
 #include "ledControl.h"
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <Preferences.h>
+#include <ArduinoJson.h>
 
 MQTT_Settings mqttSettings;
 static unsigned long mqttReconnectTimer = ULONG_MAX;
@@ -256,7 +256,7 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
         LOG_ERROR("deserializeJson() failed: %s\n", error.c_str());
         return;
     }
-    if (doc.containsKey("state"))
+    if (doc["state"].is<const char*>())
     {
         const char *state = doc["state"];
         if (strcasecmp(state, "ON") == 0)
@@ -272,12 +272,12 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
             LOG_WARNING("Invalid state value: %s\n", state);
         }
     }
-    if (doc.containsKey("brightness"))
+    if (doc["brightness"].is<uint16_t>())
     {
         uint16_t brightness = doc["brightness"];
         setLedBrightness(brightness);
     }
-    if (LED_MODE == LED_MODES::CCT && doc.containsKey("color_temp"))
+    if (LED_MODE == LED_MODES::CCT && doc["color_temp"].is<uint16_t>())
     {
         uint16_t color_temp = doc["color_temp"];
         setLedColorTemperature(color_temp);

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Arduino.h>
 
 enum class MessageTypes : uint8_t
