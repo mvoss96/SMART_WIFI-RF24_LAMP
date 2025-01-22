@@ -61,7 +61,7 @@ void ledInit()
         if (pins[i] != -1)
         {
             ledcAttach(pins[i], LED_PWM_FREQUENCY, 10);
-            ledcWrite(pins[i], 0);
+            ledcWrite(pins[i], 100);
         }
     }
     loadLedSettings();
@@ -85,6 +85,7 @@ void ledUpdate()
         uint32_t newVal = ledcCurrentValues[i] + step;
         // Serial.printf("NewVal: %i\n", newVal);
         ledcCurrentValues[i] = newVal;
+        //LOG_INFO("LED %i: %i\n", i, newVal);
         ledcWrite(pins[i], newVal);
     }
 }

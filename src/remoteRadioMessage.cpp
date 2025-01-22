@@ -1,5 +1,7 @@
-#include "radioMessage.h"
 #include "config.h"
+#ifdef RF24RADIO_ENABLED
+
+#include "radioMessage.h"
 #include "logging.h"
 
 RemoteRadioMessageData::RemoteRadioMessageData(uint8_t *data, size_t size)
@@ -44,3 +46,5 @@ void RemoteRadioMessageData::print()
                        (valid ? "true" : "false"), (uint8_t)getEvent(), getBatteryPercentage(), getBatteryVoltage());
     LOG_INFO(output);
 }
+
+#endif

@@ -1,6 +1,8 @@
+#include "config.h"
+#ifdef RF24RADIO_ENABLED
+
 #include "radio.h"
 #include "chipID.h"
-#include "config.h"
 #include "logging.h"
 #include "radioMessage.h"
 #include "ledControl.h"
@@ -58,7 +60,7 @@ static void loadRadioSettings()
 
 void radioInit()
 {
-    loadRadioSettings();                                  // Load the radio settings
+    loadRadioSettings(); // Load the radio settings
     if (!radio.begin())
     {
         LOG_ERROR("RF24Radio Connection Error!\n");
@@ -284,3 +286,16 @@ RemoteMap &getRemoteMap()
 {
     return seenRemotes;
 }
+
+// radio task
+void radioTask(void *pvParameters)
+{
+  radioInit(); // Initialize the RF radio
+  for (;;)
+  {
+    radioLoop();
+    vTaskDelay(10); // Delay to allow other tasks to run
+  }
+}
+
+#endif

@@ -21,8 +21,10 @@ static WiFiManagerParameter custom_mqtt_port("mqttPort", "MQTT Port", String(mqt
 static WiFiManagerParameter custom_mqtt_username("mqttUsername", "MQTT Username", mqttSettings.username, 40);
 static WiFiManagerParameter custom_mqtt_password("mqttPassword", "MQTT Password", mqttSettings.password, 40);
 static WiFiManagerParameter custom_mqtt_topic("mqttTopic", "MQTT Base Topic", mqttSettings.topic, 40);
+#ifdef RF24RADIO_ENABLED
 static WiFiManagerParameter customRadioChannel("radioChannel", "Radio Channel (0 -> 125)", String(getRadioChannel()).c_str(), 3);
 static WiFiManagerParameter customRadioAddress("radioAddress", "Radio Address (00:00:00:00:00)", getRadioAddressString(), sizeof("00:00:00:00:00"));
+#endif
 
 const String translateWiFiStatus(wl_status_t status)
 {
@@ -55,9 +57,12 @@ void saveParamsCallback()
 {
     setDeviceName(custom_device_name.getValue());
     setMqttSettings(custom_mqtt_server.getValue(), atoi(custom_mqtt_port.getValue()), custom_mqtt_username.getValue(), custom_mqtt_password.getValue(), custom_mqtt_topic.getValue());
+#ifdef RF24RADIO_ENABLED
     setRadioSettings(atoi(customRadioChannel.getValue()), customRadioAddress.getValue());
-    wifiManager.setTitle(getDeviceName());
-    // ESP.restart(); // Restart the device to apply the new settings
+#endif
+    //wifiManager.setTitle(getDeviceName());
+    delay(100);
+    ESP.restart(); // Restart the device to apply the new settings
 }
 
 void wifiInit()
@@ -76,8 +81,10 @@ void wifiInit()
     custom_mqtt_username.setValue(mqttSettings.username, 40);
     custom_mqtt_password.setValue(mqttSettings.password, 40);
     custom_mqtt_topic.setValue(mqttSettings.topic, 40);
+#ifdef RF24RADIO_ENABLED
     customRadioChannel.setValue(String(getRadioChannel()).c_str(), 3);
     customRadioAddress.setValue(getRadioAddressString(), sizeof("00:00:00:00:00"));
+#endif
 
     wifiManager.setTitle(String(getDeviceName()) + " (" + SW_VERSION + ")");
     wifiManager.addParameter(&custom_device_name);
@@ -86,8 +93,10 @@ void wifiInit()
     wifiManager.addParameter(&custom_mqtt_username);
     wifiManager.addParameter(&custom_mqtt_password);
     wifiManager.addParameter(&custom_mqtt_topic);
+#ifdef RF24RADIO_ENABLED
     wifiManager.addParameter(&customRadioChannel);
     wifiManager.addParameter(&customRadioAddress);
+#endif
     wifiManager.setConnectTimeout(10);
     wifiManager.setParamsPage(true);
     wifiManager.setConfigPortalBlocking(false);
@@ -147,9 +156,10 @@ void handleWiFiConnection()
         }
     }
 
+#ifdef DEBUG_WIFI_STATUS_INTERVAL
     // Print WiFi status every 10 seconds
     static long lastTime = 0;
-    if (millis() - lastTime > 10000)
+    if (DEBUG_WIFI_STATUS_INTERVAL > 0 && millis() - lastTime > DEBUG_WIFI_STATUS_INTERVAL)
     {
         lastTime = millis();
         LOG_INFO("---------------------WIFI-STATUS------------------\n");
@@ -159,6 +169,7 @@ void handleWiFiConnection()
         LOG_INFO("WiFi IP: %s\n", WiFi.localIP().toString().c_str());
         LOG_INFO("--------------------------------------------------\n");
     }
+#endif
 
     wifiManager.process(); // Process WiFiManager tasks
 }

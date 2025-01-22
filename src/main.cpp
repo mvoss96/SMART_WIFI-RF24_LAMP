@@ -1,7 +1,13 @@
+#include "config.h"
+
 #include "wifiFunctions.h"
 #include "ledControl.h"
-#include "radio.h"
 #include "chipID.h"
+#include "ioControl.h"
+
+#ifdef RF24RADIO_ENABLED
+#include "radio.h"
+#endif
 
 #include <Arduino.h>
 
@@ -29,18 +35,6 @@ void printSpiPins()
   Serial.printf("SCK: %d\n", SCK);
 }
 
-// radio task
-void radioTask(void *pvParameters)
-{
-  radioInit(); // Initialize the RF radio
-  for (;;)
-  {
-    radioLoop();
-    ledUpdate();
-    vTaskDelay(10); // Delay to allow other tasks to run
-  }
-}
-
 void setup()
 {
   Serial.begin(115200);
@@ -48,9 +42,12 @@ void setup()
   Serial.print("\n\ncompile time: ");
   Serial.println(__DATE__ " " __TIME__);
   Serial.println(ChipID::getChipID());
-  ledInit();                                                // Initialize the LED pins
+  xTaskCreate(ioTask, "ioTask", 4096, NULL, 1, NULL); // Create the io task
+#ifdef RF24RADIO_ENABLED
   xTaskCreate(radioTask, "radioTask", 4096, NULL, 1, NULL); // Create the radio task
-  wifiInit();                                               // Initialize WiFi and MQTT settings
+#endif
+
+  wifiInit(); // Initialize WiFi and MQTT settings
 }
 
 void loop()

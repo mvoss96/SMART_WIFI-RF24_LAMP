@@ -1,4 +1,6 @@
 #pragma once
+#include "config.h"
+#ifdef RF24RADIO_ENABLED
 
 #include <cstdint>
 #include <unordered_map>
@@ -12,11 +14,11 @@ struct Remote
 
 using RemoteMap = std::unordered_map<uint32_t, Remote>;
 
-void radioInit();
-void radioLoop();
 void setRadioSettings(uint8_t channel, const char *radioAddress);
 bool radioIsInitialized();
 char* getRadioAddressString();
 uint8_t getRadioChannel(); 
 RemoteMap& getRemoteMap();
 void setRadioCallback(void (*callback)(void));
+void radioTask(void *pvParameters);
+#endif

@@ -1,4 +1,6 @@
 #pragma once
+#include "config.h"
+#ifdef RF24RADIO_ENABLED
 
 #include <Arduino.h>
 
@@ -43,7 +45,6 @@ public:
     uint8_t getMsgNum();
     MessageTypes getMsgType();
     bool getValid();
-    
 };
 
 class RemoteRadioMessageData
@@ -53,7 +54,7 @@ private:
     uint8_t BATTERY_PERCENTAGE = 0;
     uint16_t BATTERY_VOLTAGE_MV = 0;
     bool valid = false;
-    
+
 public:
     RemoteRadioMessageData(uint8_t *data, size_t size);
     RemoteEvents getEvent();
@@ -63,4 +64,4 @@ public:
     void print();
 };
 
-
+#endif

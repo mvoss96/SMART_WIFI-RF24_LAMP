@@ -17,7 +17,9 @@ static WiFiClient espClient;
 static PubSubClient mqttClient(espClient);
 static Preferences preferences;
 static bool ledStateChange = false;
+#ifdef RF24RADIO_ENABLED
 static bool newRadioSeen = false;
+#endif
 static char deviceTopic[64];
 
 static char *getDecviceTopic()
@@ -55,6 +57,7 @@ static void getMqttLightMessage(char *buff, size_t len)
     serializeJson(doc, buff, len);
 }
 
+#ifdef RF24RADIO_ENABLED
 static void mqttRemotePublish()
 {
     for (auto r : getRemoteMap())
@@ -77,6 +80,7 @@ static void mqttRemotePublish()
         }
     }
 }
+#endif
 
 static void mqttPublish()
 {
@@ -94,9 +98,12 @@ static void mqttPublish()
     {
         LOG_ERROR("MQTT publish failed\n");
     }
+#ifdef RF24RADIO_ENABLED
     mqttRemotePublish();
+#endif
 }
 
+#ifdef RF24RADIO_ENABLED
 static void mqttRemotesHomeAssistandDiscovery()
 {
 
@@ -164,6 +171,7 @@ static void mqttRemotesHomeAssistandDiscovery()
         mqttPublish(); // Publish current state to MQTT
     }
 }
+#endif
 
 static void mqttHomeAssistandDiscovery()
 {
@@ -244,7 +252,9 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
     {
         LOG_INFO("Home Assistant status online, resending MQTT Discovery\n");
         mqttHomeAssistandDiscovery();
+#ifdef RF24RADIO_ENABLED
         mqttRemotesHomeAssistandDiscovery();
+#endif
         return;
     }
 
@@ -256,7 +266,7 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
         LOG_ERROR("deserializeJson() failed: %s\n", error.c_str());
         return;
     }
-    if (doc["state"].is<const char*>())
+    if (doc["state"].is<const char *>())
     {
         const char *state = doc["state"];
         if (strcasecmp(state, "ON") == 0)
@@ -302,8 +312,10 @@ static void mqttConnect()
         mqttClient.subscribe("homeassistant/status");                       // Subscribe to the homeassistant status topic
         setLedCallback([]()
                        { ledStateChange = true; });
+#ifdef RF24RADIO_ENABLED
         setRadioCallback([]()
                          { newRadioSeen = true; });
+#endif
         LOG_INFO("MQTT connected\n");
         delay(100);
         mqttHomeAssistandDiscovery();
@@ -344,11 +356,13 @@ void handleMQTTConnection()
         lastPublishTime = millis();
         ledStateChange = false;
     }
+#ifdef RF24RADIO_ENABLED
     if (newRadioSeen)
     {
         mqttRemotesHomeAssistandDiscovery();
         newRadioSeen = false;
     }
+#endif
     mqttClient.loop(); // Allow MQTT client to process incoming and outgoing messages
 }
 
