@@ -4,6 +4,7 @@
 #include "mqtt.h"
 #include "radio.h"
 #include "ledControl.h"
+#include "haDiscovery.h"
 
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -60,9 +61,42 @@ static void getMqttLightMessage(char *buff, size_t len)
     serializeJson(doc, buff, len);
 }
 
-#ifdef RF24RADIO_ENABLED
-static void mqttRemotePublish()
+static void getMqttDiagnosticMessage(char *buff, size_t len)
 {
+    JsonDocument doc;
+    doc["ip"] = WiFi.localIP().toString();
+    doc["rssi"] = WiFi.RSSI();
+    serializeJson(doc, buff, len);
+}
+
+static void publish(const char *topic, const char *payload)
+{
+    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, payload);
+    if (!mqttClient.publish(topic, payload))
+    {
+        LOG_ERROR("MQTT publish failed for topic: %s\n", topic);
+    }
+}
+
+static void mqttPublish()
+{
+    // Return if MQTT is not enabled or not connected
+    if (!mqttClient.connected())
+    {
+        return;
+    }
+    char buffPayload[128];
+    char topic[64];
+
+    getMqttLightMessage(buffPayload, sizeof(buffPayload));
+    snprintf(topic, sizeof(topic), "%s/light", getDecviceTopic());
+    publish(topic, buffPayload);
+
+    getMqttDiagnosticMessage(buffPayload, sizeof(buffPayload));
+    snprintf(topic, sizeof(topic), "%s/diagnostic", getDecviceTopic());
+    publish(topic, buffPayload);
+
+#ifdef RF24RADIO_ENABLED
     for (auto r : getRemoteMap())
     {
         JsonDocument doc;
@@ -82,27 +116,6 @@ static void mqttRemotePublish()
             LOG_ERROR("MQTT publish failed for remote: %s\n", uuid);
         }
     }
-}
-#endif
-
-static void mqttPublish()
-{
-    // Return if MQTT is not enabled or not connected
-    if (!mqttClient.connected())
-    {
-        return;
-    }
-    char buffPayload[128];
-    getMqttLightMessage(buffPayload, sizeof(buffPayload));
-    char topic[64];
-    snprintf(topic, sizeof(topic), "%s/light", getDecviceTopic());
-    log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, buffPayload);
-    if (!mqttClient.publish(topic, buffPayload))
-    {
-        LOG_ERROR("MQTT publish failed\n");
-    }
-#ifdef RF24RADIO_ENABLED
-    mqttRemotePublish();
 #endif
 }
 
@@ -178,52 +191,13 @@ static void mqttRemotesHomeAssistandDiscovery()
 
 static void mqttHomeAssistandDiscovery()
 {
-    JsonDocument doc;
-    JsonArray colorModes = doc["supported_color_modes"].to<JsonArray>();
-    switch (LED_MODE)
-    {
-    case LED_MODES::SINGLE:
-        colorModes.add("brightness");
-        break;
-    case LED_MODES::CCT:
-        colorModes.add("color_temp");
-        doc["max_mireds"] = MAX_MIREDS;
-        doc["min_mireds"] = MIN_MIREDS;
-        break;
-    case LED_MODES::RGB:
-        colorModes.add("rgb");
-        break;
-    case LED_MODES::RGBW:
-        colorModes.add("rgbw");
-        break;
-    case LED_MODES::RGBWW:
-        colorModes.add("rgbww");
-        break;
-    }
+    HaDiscovery haDiscovery(mqttSettings.topic);
+    std::string topic(haDiscovery.getTopic());
+    // std::string payload2(haDiscovery.getPayloadString());
+    std::string_view payload = haDiscovery.getPayloadString();
 
-    JsonArray identifiers = doc["device"]["identifiers"].to<JsonArray>();
-    identifiers.add(ChipID::getChipID());
-
-    doc["device_class"] = "light";
-    doc["configuration_url"] = WiFi.localIP().toString();
-    doc["brightness"] = true;
-    doc["brightness_scale"] = 1023,
-    doc["command_topic"] = String(getDecviceTopic()) + "/set";
-    doc["availability_topic"] = String(getDecviceTopic()) + "/status";
-    doc["device"]["manufacturer"] = "MarcusVoss";
-    doc["device"]["model"] = MODELNAME;
-    doc["device"]["name"] = getDeviceName();
-    doc["device"]["sw_version"] = SW_VERSION;
-    doc["device"]["identifiers"][0] = ChipID::getChipID();
-    doc["name"] = "Light";
-    doc["schema"] = "json";
-    doc["state_topic"] = String(getDecviceTopic()) + "/light";
-    doc["unique_id"] = ChipID::getChipID();
-
-    String payload;
-    serializeJson(doc, payload);
-    String topic = "homeassistant/light/" + String(ChipID::getChipID()) + "/config";
-    bool res = mqttClient.publish(topic.c_str(), payload.c_str(), true); // Send with retain flag
+    // Send with retain flag
+    bool res = mqttClient.publish(topic.c_str(), reinterpret_cast<const uint8_t *>(payload.data()), payload.size(), true);
     if (res)
     {
         LOG_INFO("MQTT Home Assistant Discovery published\n");
@@ -313,7 +287,7 @@ static void mqttConnect()
     mqttClient.setCallback(mqttCallback);
     if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password, (String(getDecviceTopic()) + "/status").c_str(), 1, true, "offline"))
     {
-        mqttClient.setBufferSize(1024);
+        mqttClient.setBufferSize(2048);                                     // Increase the buffer size
         mqttClient.subscribe((String(getDecviceTopic()) + "/set").c_str()); // Subscribe to the set topic
         mqttClient.subscribe("homeassistant/status");                       // Subscribe to the homeassistant status topic
         setLedCallback([]()
@@ -432,5 +406,4 @@ static void loadMQTTsettings()
 void mqttInit()
 {
     loadMQTTsettings();
-    mqttClient.setBufferSize(512);
 }
