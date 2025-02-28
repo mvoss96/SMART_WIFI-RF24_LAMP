@@ -1,11 +1,12 @@
 #pragma once
 #include "configs/base.hpp"
 
+// Device Configuration
 //#define DEBUG_WIFI_STATUS_INTERVAL 10000 // Interval to print WiFi status in milliseconds
 
 // Device Configuration
-//#include "configs/rgb-rf24-controller.hpp"
-#include "configs/bedside-lamp.hpp"
+#include "configs/rgb-rf24-controller.hpp"
+//#include "configs/bedside-lamp.hpp"
 
 
 

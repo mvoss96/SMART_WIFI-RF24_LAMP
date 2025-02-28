@@ -17,10 +17,13 @@ static WiFiClient espClient;
 static PubSubClient mqttClient(espClient);
 static Preferences preferences;
 static bool ledStateChange = false;
+static char deviceTopic[64];
+static bool homeassistantReconnect = false;
+static unsigned long homeassistantReconnectTimer = 0;
+
 #ifdef RF24RADIO_ENABLED
 static bool newRadioSeen = false;
 #endif
-static char deviceTopic[64];
 
 static char *getDecviceTopic()
 {
@@ -159,7 +162,7 @@ static void mqttRemotesHomeAssistandDiscovery()
         payload.clear();
         serializeJson(doc, payload);
         topic = "homeassistant/sensor/RF24-Remote-" + String(uuid) + "/battery_voltage/config";
-        res = mqttClient.publish(topic.c_str(), payload.c_str(), false);
+        res = mqttClient.publish(topic.c_str(), payload.c_str(), true); // Send with retain flag
         if (res)
         {
             LOG_INFO("MQTT Home Assistant Remote Battery Voltage Discovery published\n");
@@ -220,7 +223,7 @@ static void mqttHomeAssistandDiscovery()
     String payload;
     serializeJson(doc, payload);
     String topic = "homeassistant/light/" + String(ChipID::getChipID()) + "/config";
-    bool res = mqttClient.publish(topic.c_str(), payload.c_str(), false);
+    bool res = mqttClient.publish(topic.c_str(), payload.c_str(), true); // Send with retain flag
     if (res)
     {
         LOG_INFO("MQTT Home Assistant Discovery published\n");
@@ -234,27 +237,30 @@ static void mqttHomeAssistandDiscovery()
 
 IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int length)
 {
-    Serial.print("Message arrived [");
-    Serial.print(topic);
-    Serial.print("] payload: ");
     payload[length] = '\0'; // Null terminate the payload
-    for (int i = 0; i < length; i++)
-    {
-        Serial.print((char)payload[i]);
-    }
-    Serial.println();
+    LOG_INFO("Message arrived [%s] payload: %.*s\n", topic, length, payload);
 
-    Serial.println(strcmp(topic, "homeassistant/status"));
-    Serial.println(strcasecmp((char *)payload, "online"));
-
-    // Resend Home Assistant Discovery message if Home Assistant status recieved is "online"
-    if (strcmp(topic, "homeassistant/status") == 0 && strcasecmp((char *)payload, "online") == 0)
+    // Check if the message is a homeassistant status message
+    if (strcmp(topic, "homeassistant/status") == 0)
     {
-        LOG_INFO("Home Assistant status online, resending MQTT Discovery\n");
-        mqttHomeAssistandDiscovery();
-#ifdef RF24RADIO_ENABLED
-        mqttRemotesHomeAssistandDiscovery();
-#endif
+        // Check if the payload is "online"
+        if (strcasecmp((char *)payload, "online") == 0)
+        {
+            LOG_INFO("Home Assistant changed status to online\n");
+            mqttPublish(); // Publish current state to MQTT
+
+            // Resend current Status again after in case Home Assistant missed it
+            homeassistantReconnect = true;
+            homeassistantReconnectTimer = millis();
+        }
+        else if (strcasecmp((char *)payload, "offline") == 0)
+        {
+            LOG_INFO("Home Assistant changed status to offline\n");
+        }
+        else
+        {
+            LOG_WARNING("Invalid homeassistant status value: %s\n", payload);
+        }
         return;
     }
 
@@ -333,6 +339,14 @@ void handleMQTTConnection()
     if (!getMqttEnabled())
     {
         return;
+    }
+
+    // Send MQTT status message to Home Assistant if Home Assistant just reconnected
+    if (homeassistantReconnect && millis() - homeassistantReconnectTimer > 5000)
+    {
+        LOG_INFO("Sending MQTT status message again to Home Assistant\n");
+        mqttPublish(); // Publish current state to MQTT
+        homeassistantReconnect = false;
     }
 
     // Attempt MQTT reconnection if disconnected and interval has passed

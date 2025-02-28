@@ -60,8 +60,9 @@ void ledInit()
     {
         if (pins[i] != -1)
         {
+            pinMode(pins[i], OUTPUT);
             ledcAttach(pins[i], LED_PWM_FREQUENCY, 10);
-            ledcWrite(pins[i], 100);
+            ledcWrite(pins[i], 0);
         }
     }
     loadLedSettings();
