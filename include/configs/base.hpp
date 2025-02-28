@@ -1,6 +1,6 @@
 #pragma once
 
-#define SW_VERSION "1.0.5"        // Software version
+#define SW_VERSION "1.1.0"        // Software version
 #define LED_MAX_VAL 1024          // Maximum value for LED brightness and color (1024 for 10-bit PWM) DO NOT CHANGE
 
 enum class LED_MODES
