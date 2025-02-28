@@ -13,3 +13,4 @@ public:
     std::string_view getTopic();
     std::string_view getPayloadString();
 };
+

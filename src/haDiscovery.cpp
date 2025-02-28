@@ -37,7 +37,7 @@ HaDiscovery::HaDiscovery(std::string_view baseTopic)
     // Light Sub-Object
     JsonObject light = components["light"].to<JsonObject>();
     light["p"] = "light";
-    light["name"] = "light";
+    light["name"] = "Light";
     light["schema"] = "json";
     light["device_class"] = "light";
     light["brightness_scale"] = LED_MAX_VAL;
@@ -102,6 +102,32 @@ HaDiscovery::HaDiscovery(std::string_view baseTopic)
     diagnosticRSSI["state_topic"] = stateTopicRSSIStream.str();
     diagnosticRSSI["unit_of_measurement"] = "dBm";
     diagnosticRSSI["value_template"] = "{{ value_json.rssi }}";
+
+#ifdef RF24RADIO_ENABLED
+    JsonObject radioChannel = components["radioChannel"].to<JsonObject>();
+    radioChannel["p"] = "sensor";
+    radioChannel["name"] = "Radio Channel";
+    radioChannel["entity_category"] = "diagnostic";
+    std::ostringstream uniqueIDRadioChannelStream;
+    uniqueIDRadioChannelStream << ChipID::getChipID() << "_radioChannel";
+    radioChannel["unique_id"] = uniqueIDRadioChannelStream.str();
+    std::ostringstream stateTopicRadioChannelStream;
+    stateTopicRadioChannelStream << baseTopic << "/" << ChipID::getChipID() << "/diagnostic";
+    radioChannel["state_topic"] = stateTopicRadioChannelStream.str();
+    radioChannel["value_template"] = "{{ value_json.radio_channel }}";
+
+    JsonObject radioAddress = components["radioAddress"].to<JsonObject>();
+    radioAddress["p"] = "sensor";
+    radioAddress["name"] = "Radio Address";
+    radioAddress["entity_category"] = "diagnostic";
+    std::ostringstream uniqueIDRadioAddressStream;
+    uniqueIDRadioAddressStream << ChipID::getChipID() << "_radioAddress";
+    radioAddress["unique_id"] = uniqueIDRadioAddressStream.str();
+    std::ostringstream stateTopicRadioAddressStream;
+    stateTopicRadioAddressStream << baseTopic << "/" << ChipID::getChipID() << "/diagnostic";
+    radioAddress["state_topic"] = stateTopicRadioAddressStream.str();
+    radioAddress["value_template"] = "{{ value_json.radio_address }}";
+#endif
 
     // Serialize the JSON document
     size_t jsize = serializeJson(doc, payloadStr);

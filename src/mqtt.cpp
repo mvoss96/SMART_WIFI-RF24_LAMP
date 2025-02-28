@@ -66,6 +66,10 @@ static void getMqttDiagnosticMessage(char *buff, size_t len)
     JsonDocument doc;
     doc["ip"] = WiFi.localIP().toString();
     doc["rssi"] = WiFi.RSSI();
+#ifdef RF24RADIO_ENABLED
+    doc["radio_channel"] = getRadioChannel();
+    doc["radio_address"] = getRadioAddressString();
+#endif
     serializeJson(doc, buff, len);
 }
 
