@@ -67,8 +67,8 @@ static void getMqttDiagnosticMessage(char *buff, size_t len)
     doc["ip"] = WiFi.localIP().toString();
     doc["rssi"] = WiFi.RSSI();
 #ifdef RF24RADIO_ENABLED
-    doc["radio_channel"] = getRadioChannel();
-    doc["radio_address"] = getRadioAddressString();
+    doc["radioChannel"] = getRadioChannel();
+    doc["radioAddress"] = getRadioAddressString();
 #endif
     serializeJson(doc, buff, len);
 }
@@ -80,6 +80,22 @@ static void publish(const char *topic, const char *payload)
     {
         LOG_ERROR("MQTT publish failed for topic: %s\n", topic);
     }
+}
+
+static bool getMqttRemoteMessage(char *buff, size_t len, size_t id)
+{
+    if (getRemoteMap().find(id) == getRemoteMap().end())
+    {
+        LOG_ERROR("Remote ID not found: %i\n", id);
+        return false;
+    }
+
+    JsonDocument doc;
+    doc["battery"] = getRemoteMap()[id].batteryPercentage;
+    doc["batteryVoltage"] = getRemoteMap()[id].batteryVoltage;
+    doc["lastSeenBy"] = getDeviceName();
+    serializeJson(doc, buff, len);
+    return true;
 }
 
 static void mqttPublish()
@@ -101,23 +117,14 @@ static void mqttPublish()
     publish(topic, buffPayload);
 
 #ifdef RF24RADIO_ENABLED
+    char uuid[9];
     for (auto r : getRemoteMap())
     {
-        JsonDocument doc;
-        char uuid[9];
-        char buff[128];
-        sprintf(uuid, "%02X%02X%02X%02X", r.second.uuid[0], r.second.uuid[1], r.second.uuid[2], r.second.uuid[3]);
-
-        doc["battery"] = String(r.second.batteryPercentage);
-        doc["batteryVoltage"] = String(r.second.batteryVoltage);
-
-        serializeJson(doc, buff, sizeof(buff));
-        char topic[64];
-        snprintf(topic, sizeof(topic), "%s/RF24-Remote-%s", mqttSettings.topic, uuid);
-        log(LOG_LEVEL::INFO, "Publish MQTT message on topic %s with payload: %s\n", topic, buff);
-        if (!mqttClient.publish(topic, buff))
+        if (getMqttRemoteMessage(buffPayload, sizeof(buffPayload), r.first))
         {
-            LOG_ERROR("MQTT publish failed for remote: %s\n", uuid);
+            sprintf(uuid, "%02X%02X%02X%02X", r.second.uuid[0], r.second.uuid[1], r.second.uuid[2], r.second.uuid[3]);
+            snprintf(topic, sizeof(topic), "%s/RF24-Remote-%s", mqttSettings.topic, uuid);
+            publish(topic, buffPayload);
         }
     }
 #endif
@@ -133,62 +140,18 @@ static void mqttRemotesHomeAssistandDiscovery()
         JsonDocument doc;
         char uuid[9];
         sprintf(uuid, "%02X%02X%02X%02X", r.second.uuid[0], r.second.uuid[1], r.second.uuid[2], r.second.uuid[3]);
-
-        // Publish remote battery percentage
-        doc["name"] = "battery";
-        doc["device_class"] = "battery";
-        doc["unit_of_measurement"] = "%";
-        doc["value_template"] = "{{ value_json.battery }}";
-        doc["via_device"] = ChipID::getChipID();
-        doc["entity_category"] = "diagnostic";
-        doc["state_topic"] = String(mqttSettings.topic) + "/RF24-Remote-" + uuid;
-        doc["unique_id"] = "RF24-Remote-" + String(uuid) + "-battery";
-        doc["device"]["manufacturer"] = "MarcusVoss";
-        doc["device"]["model"] = "RF24-Remote";
-        doc["device"]["name"] = "RF24-Remote-" + String(uuid);
-        doc["schema"] = "json";
-        doc["device"]["identifiers"][0] = "RF24-Remote-" + String(uuid);
-        String payload;
-        serializeJson(doc, payload);
-        String topic = "homeassistant/sensor/RF24-Remote-" + String(uuid) + "/battery/config";
-        bool res = mqttClient.publish(topic.c_str(), payload.c_str(), false);
+        RemoteHaDiscovery remoteHaDiscovery(mqttSettings.topic, uuid);
+        std::string topic(remoteHaDiscovery.getTopic());
+        std::string_view payload = remoteHaDiscovery.getPayloadString();
+        bool res = mqttClient.publish(topic.c_str(), reinterpret_cast<const uint8_t *>(payload.data()), payload.size(), true);
         if (res)
         {
-            LOG_INFO("MQTT Home Assistant Remote Battery Discovery published\n");
+            LOG_INFO("MQTT Remote Home Assistant Discovery published\n");
         }
         else
         {
-            LOG_ERROR("MQTT Home Assistant Remote Battery Discovery failed\n");
+            LOG_ERROR("MQTT Remote Home Assistant Discovery failed\n");
         }
-
-        // Publish remote battery voltage
-        doc.clear();
-        doc["name"] = "battery_voltage";
-        doc["device_class"] = "voltage";
-        doc["unit_of_measurement"] = "mV";
-        doc["value_template"] = "{{ value_json.batteryVoltage }}";
-        doc["via_device"] = ChipID::getChipID();
-        doc["entity_category"] = "diagnostic";
-        doc["state_topic"] = String(mqttSettings.topic) + "/RF24-Remote-" + uuid;
-        doc["unique_id"] = "RF24-Remote-" + String(uuid) + "-battery-voltage";
-        doc["device"]["manufacturer"] = "MarcusVoss";
-        doc["device"]["model"] = "RF24-Remote";
-        doc["device"]["name"] = "RF24-Remote-" + String(uuid);
-        doc["schema"] = "json";
-        doc["device"]["identifiers"][0] = "RF24-Remote-" + String(uuid);
-        payload.clear();
-        serializeJson(doc, payload);
-        topic = "homeassistant/sensor/RF24-Remote-" + String(uuid) + "/battery_voltage/config";
-        res = mqttClient.publish(topic.c_str(), payload.c_str(), true); // Send with retain flag
-        if (res)
-        {
-            LOG_INFO("MQTT Home Assistant Remote Battery Voltage Discovery published\n");
-        }
-        else
-        {
-            LOG_ERROR("MQTT Home Assistant Remote Battery Voltage Discovery failed\n");
-        }
-        mqttPublish(); // Publish current state to MQTT
     }
 }
 #endif

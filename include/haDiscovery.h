@@ -1,16 +1,28 @@
 #pragma once
 #include <string>
 
-// Home Assitant Device based discovery
-class HaDiscovery
+// Base class for Home Assistant Device based discovery
+class BaseHaDiscovery
 {
-private:
+protected:
     std::string topic;
     std::string payloadStr;
-    
+
 public:
-    HaDiscovery(std::string_view baseTopic);
     std::string_view getTopic();
     std::string_view getPayloadString();
 };
 
+// Home Assistant Device based discovery
+class HaDiscovery : public BaseHaDiscovery
+{
+public:
+    HaDiscovery(std::string_view baseTopic);
+};
+
+// Remote Home Assistant Device based discovery
+class RemoteHaDiscovery : public BaseHaDiscovery
+{
+public:
+    RemoteHaDiscovery(std::string_view baseTopic, std::string_view uuid);
+};

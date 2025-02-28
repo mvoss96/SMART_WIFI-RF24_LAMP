@@ -7,6 +7,18 @@
 #include <ArduinoJson.h>
 #include <sstream>
 
+static const char* REMOTE_NAME = "RF24-Remote";
+
+std::string_view BaseHaDiscovery::getTopic()
+{
+    return topic;
+}
+
+std::string_view BaseHaDiscovery::getPayloadString()
+{
+    return payloadStr;
+}
+
 // Constructor
 HaDiscovery::HaDiscovery(std::string_view baseTopic)
 {
@@ -114,7 +126,7 @@ HaDiscovery::HaDiscovery(std::string_view baseTopic)
     std::ostringstream stateTopicRadioChannelStream;
     stateTopicRadioChannelStream << baseTopic << "/" << ChipID::getChipID() << "/diagnostic";
     radioChannel["state_topic"] = stateTopicRadioChannelStream.str();
-    radioChannel["value_template"] = "{{ value_json.radio_channel }}";
+    radioChannel["value_template"] = "{{ value_json.radioChannel }}";
 
     JsonObject radioAddress = components["radioAddress"].to<JsonObject>();
     radioAddress["p"] = "sensor";
@@ -126,7 +138,7 @@ HaDiscovery::HaDiscovery(std::string_view baseTopic)
     std::ostringstream stateTopicRadioAddressStream;
     stateTopicRadioAddressStream << baseTopic << "/" << ChipID::getChipID() << "/diagnostic";
     radioAddress["state_topic"] = stateTopicRadioAddressStream.str();
-    radioAddress["value_template"] = "{{ value_json.radio_address }}";
+    radioAddress["value_template"] = "{{ value_json.radioAddress }}";
 #endif
 
     // Serialize the JSON document
@@ -134,12 +146,68 @@ HaDiscovery::HaDiscovery(std::string_view baseTopic)
     LOG_INFO("Serialized JSON size: %d str size: %d\n", jsize, payloadStr.size());
 }
 
-std::string_view HaDiscovery::getTopic()
+RemoteHaDiscovery::RemoteHaDiscovery(std::string_view baseTopic, std::string_view uuid)
 {
-    return topic;
-}
+    std:: ostringstream remoteName;
+    remoteName << REMOTE_NAME << "-" << uuid;
 
-std::string_view HaDiscovery::getPayloadString()
-{
-    return payloadStr;
+    // Create the topic
+    std::ostringstream topicStream;
+    topicStream << "homeassistant/device/" << remoteName.str() << "/config";
+    topic = topicStream.str();
+
+    // Create the payload
+    JsonDocument doc;
+    
+    // Device Sub-Object
+    JsonObject device = doc["dev"].to<JsonObject>();
+    device["ids"] = remoteName.str();
+    device["name"] = remoteName.str();
+    device["mf"] = "MarcusVoss";
+    device["mdl"] = REMOTE_NAME;
+    std::ostringstream stateTopicStream;
+    stateTopicStream << baseTopic << "/" << remoteName.str();
+    device["state_topic"] = stateTopicStream.str();
+    device["schema"] = "json";
+
+    // Orogin Sub-Object
+    JsonObject origin = doc["o"].to<JsonObject>();
+    origin["name"] = "MarcusVoss";
+
+    // Components
+    JsonObject components = doc["cmps"].to<JsonObject>();
+
+    // Battery Sub-Object
+    JsonObject battery = components["battery"].to<JsonObject>();
+    battery["p"] = "sensor";
+    battery["name"] = "Battery";
+    battery["device_class"] = "battery";
+    battery["unit_of_measurement"] = "%";
+    std::ostringstream uniqueIDBatteryStream;
+    uniqueIDBatteryStream << remoteName.str() << "_battery";
+    battery["unique_id"] = uniqueIDBatteryStream.str();
+    battery["value_template"] = "{{ value_json.battery }}";
+
+    // Battery Voltage Sub-Object
+    JsonObject batteryVoltage = components["batteryVoltage"].to<JsonObject>();
+    batteryVoltage["p"] = "sensor";
+    batteryVoltage["name"] = "Battery Voltage";
+    batteryVoltage["device_class"] = "voltage";
+    batteryVoltage["unit_of_measurement"] = "mV";
+    std::ostringstream uniqueIDBatteryVoltageStream;
+    uniqueIDBatteryVoltageStream << remoteName.str() << "_batteryVoltage";
+    batteryVoltage["unique_id"] = uniqueIDBatteryVoltageStream.str();
+    batteryVoltage["value_template"] = "{{ value_json.batteryVoltage }}";
+
+    // lastSeenBy Sub-Object
+    JsonObject lastSeenBy = components["lastSeenBy"].to<JsonObject>();
+    lastSeenBy["p"] = "sensor";
+    lastSeenBy["name"] = "Last Seen By";
+    lastSeenBy["entity_category"] = "diagnostic";
+    std::ostringstream uniqueIDLastSeenByStream;
+    uniqueIDLastSeenByStream << remoteName.str() << "_lastSeenBy";
+    lastSeenBy["unique_id"] = uniqueIDLastSeenByStream.str();
+    lastSeenBy["value_template"] = "{{ value_json.lastSeenBy }}";
+
+    serializeJson(doc, payloadStr);
 }
