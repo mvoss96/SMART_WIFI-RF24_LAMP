@@ -1,17 +1,18 @@
 #pragma once
 #include "base.hpp"
 
+// Model Configuration
 #define MODELNAME "SMART-Bedside-Lamp" // Model name used as default device name
 
 // WiFi Configuration
 #define WIFI_RECONNECT_ATTEMPT_INTERVAL 2000 // Interval between WiFi reconnection attempts in milliseconds
-#define MQTT_RECONNECT_ATTEMPT_INTERVAL 5000 // Interval between MQTT reconnection attempts in milliseconds
 
 // MQTT Configuration
-#define MQTT_MIN_DELAY 500       // Minimum delay between MQTT messages in milliseconds
-#define MQTT_PUBLISH_INTERVAL -1 // Interval between MQTT publishes in milliseconds (-1 for no interval)
+#define MQTT_MIN_DELAY 500                   // Minimum delay between MQTT messages in milliseconds
+#define MQTT_PUBLISH_INTERVAL -1             // Interval between MQTT publishes in milliseconds (-1 for no interval)
+#define MQTT_RECONNECT_ATTEMPT_INTERVAL 5000 // Interval between MQTT reconnection attempts in milliseconds
 
-// LED Configuration
+// Output LED Configuration
 #define LED_MODE LED_MODES::CCT               // Set the LED mode
 #define LED_PWM_FREQUENCY 30000               // Frequency for LED PWM Control
 #define BRIGHTNESS_STEP_SIZE LED_MAX_VAL / 16 // Number of brightness steps
@@ -25,6 +26,10 @@
 #define LED3_PIN -1                           // Pin for LED3 set to -1 if not used
 #define LED4_PIN -1                           // Pin for LED4 set to -1 if not used
 #define LED5_PIN -1                           // Pin for LED5 set to -1 if not used
+
+// Status LED Configuration
+//#define ENABLE_STATUS_LED // Uncomment to enable status LED
+//#define STATUS_LED_PIN -1 // Pin for status LED
 
 // Button Configuration
 #define ENABLE_BUTTON1                           // Uncomment to enable Button1

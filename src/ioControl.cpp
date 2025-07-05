@@ -8,6 +8,8 @@ namespace
 {
     const unsigned int debounceTime = 30;
     const unsigned int holdInterval = 150;
+    unsigned long lastStatusLedUpdate = 0;
+    STATUS_LED_CODES statusLedCode{STATUS_LED_CODES::NONE};
 
     class Button
     {
@@ -24,7 +26,7 @@ namespace
 
         void actClick()
         {
-            Serial.println("Click");
+            // Serial.println("Click");
             switch (behavior)
             {
             case BUTTON_BEHAVIOR::TOGGLE:
@@ -38,7 +40,7 @@ namespace
 
         void actHold(unsigned long counter)
         {
-            Serial.println("Hold");
+            // Serial.println("Hold");
             switch (behavior)
             {
             case BUTTON_BEHAVIOR::TOGGLE:
@@ -120,21 +122,65 @@ namespace
     };
 
     std::vector<Button> buttons{};
-}
 
-void ioInit()
-{
-#ifdef ENABLE_BUTTON1
-    buttons.push_back(Button(BUTTON1_PIN, BUTTON1_ACTIVE_HIGH, BUTTON1_BEHAVIOR));
-#endif
-}
-
-void ioUpdate()
-{
-    for (auto &button : buttons)
+    void ioInit()
     {
-        button.update();
+#ifdef ENABLE_BUTTON1
+        buttons.push_back(Button(BUTTON1_PIN, BUTTON1_ACTIVE_HIGH, BUTTON1_BEHAVIOR));
+#endif
+#ifdef ENABLE_STATUS_LED
+        pinMode(STATUS_LED_PIN, OUTPUT);
+#endif
     }
+
+    void ioUpdate()
+    {
+        for (auto &button : buttons)
+        {
+            button.update();
+        }
+    }
+
+    void statusLedUpdate()
+    {
+        const uint16_t SLOW_BLINKING_PERIOD = 500; // 1 Hz (1s period, toggle every 0.5s)
+        const uint16_t FAST_BLINKING_PERIOD = 167; // ~3 Hz (0.33s period, toggle every ~0.167s)
+        static bool ledState = false;
+        unsigned long now = millis();
+        switch (statusLedCode)
+        {
+        case STATUS_LED_CODES::STARTUP:
+            digitalWrite(STATUS_LED_PIN, HIGH);
+            break;
+        case STATUS_LED_CODES::NO_WIFI:
+            if (now - lastStatusLedUpdate >= SLOW_BLINKING_PERIOD)
+            {
+                ledState = !ledState;
+                digitalWrite(STATUS_LED_PIN, ledState ? HIGH : LOW);
+                lastStatusLedUpdate = now;
+            }
+            break;
+        case STATUS_LED_CODES::NO_MQTT:
+            if (now - lastStatusLedUpdate >= FAST_BLINKING_PERIOD)
+            {
+                ledState = !ledState;
+                digitalWrite(STATUS_LED_PIN, ledState ? HIGH : LOW);
+                lastStatusLedUpdate = now;
+            }
+            break;
+        case STATUS_LED_CODES::NONE:
+        default:
+            digitalWrite(STATUS_LED_PIN, LOW);
+            ledState = false;
+            break;
+        }
+    }
+
+} // namespace
+
+void statusLedSetCode(STATUS_LED_CODES code)
+{
+    statusLedCode = code;
 }
 
 void ioTask(void *pvParameters)
@@ -145,6 +191,7 @@ void ioTask(void *pvParameters)
     {
         ioUpdate();
         ledUpdate();
+        statusLedUpdate();
         vTaskDelay(10); // Delay to allow other tasks to run
     }
 }
