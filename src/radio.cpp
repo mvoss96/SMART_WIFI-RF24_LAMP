@@ -290,12 +290,25 @@ RemoteMap &getRemoteMap()
 // radio task
 void radioTask(void *pvParameters)
 {
-  radioInit(); // Initialize the RF radio
-  for (;;)
-  {
-    radioLoop();
-    vTaskDelay(10); // Delay to allow other tasks to run
-  }
+    radioInit(); // Initialize the RF radio
+    unsigned long radioWatchdogTimer = millis();
+    for (;;)
+    {
+        radioLoop();
+
+        #ifdef RF24RADIO_WATCHDOG_ENABLED
+        // RF24 Radio can become unresponsive after a while, so we need to reset it
+        // Watchdog triggers every 30 seconds after the last received message
+        if (millis() - radioWatchdogTimer > 30000)
+        {
+            LOG_INFO("Radio watchdog\n");
+            radioInit();
+            radioWatchdogTimer = millis();
+        }
+        #endif
+
+        vTaskDelay(10); // Delay to allow other tasks to run
+    }
 }
 
 #endif

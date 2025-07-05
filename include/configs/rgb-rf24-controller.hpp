@@ -28,6 +28,7 @@
 
 // RF24 Configuration
 #define RF24RADIO_ENABLED // Uncomment to enable RF24 radio
+#define RF24RADIO_WATCHDOG_ENABLED // Uncomment to enable RF24 radio watchdog
 #define PIN_RADIO_CE 7    // Radio CE pin
 #define PIN_RADIO_CSN 8   // Radio CSN pin
 #define PIN_RADIO_IRQ 9   // Radio IRQ pin
