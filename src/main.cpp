@@ -1,17 +1,16 @@
 #include "config.h"
 
-#include "wifiFunctions.h"
-#include "ledControl.h"
-#include "chipID.h"
-#include "ioControl.h"
-
+#include "Network/network.h"
+#include "Output/ioControl.h"
+#include "ChipID/chipID.h"
 #ifdef RF24RADIO_ENABLED
-#include "radio.h"
+#include "RF/radio.h"
 #endif
 
 #include <Arduino.h>
 
-void printMemoryInfo(){
+void printMemoryInfo()
+{
   uint32_t flashSize = ESP.getFlashChipSize();
   Serial.printf("Flash Size: %u bytes\n", flashSize);
 
@@ -43,15 +42,16 @@ void setup()
   Serial.print("\n\ncompile time: ");
   Serial.println(__DATE__ " " __TIME__);
   Serial.println(ChipID::getChipID());
+
   xTaskCreate(ioTask, "ioTask", 4096, NULL, 1, NULL); // Create the io task
 #ifdef RF24RADIO_ENABLED
   xTaskCreate(radioTask, "radioTask", 4096, NULL, 1, NULL); // Create the radio task
 #endif
 
-  wifiInit(); // Initialize WiFi and MQTT settings
+  networkInit(); // Initialize WiFi and MQTT settings
 }
 
 void loop()
 {
-  wifiLoop();
+  networkLoop();
 }

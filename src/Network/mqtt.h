@@ -12,6 +12,7 @@ struct MQTT_Settings
 extern MQTT_Settings mqttSettings;
 
 bool getMqttEnabled();
+bool getMQTTConnected();
 void handleMQTTConnection();
 void mqttInit();
 void setMqttSettings(const char *server, const unsigned int port, const char *username, const char *password, const char *topic);

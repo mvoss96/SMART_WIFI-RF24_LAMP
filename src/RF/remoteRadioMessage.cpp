@@ -1,8 +1,8 @@
 #include "config.h"
-#ifdef RF24RADIO_ENABLED
 
+#ifdef RF24RADIO_ENABLED
 #include "radioMessage.h"
-#include "logging.h"
+#include "Logging/logging.h"
 
 RemoteRadioMessageData::RemoteRadioMessageData(uint8_t *data, size_t size)
 {

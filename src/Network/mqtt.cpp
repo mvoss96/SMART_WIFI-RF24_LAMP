@@ -1,10 +1,10 @@
-#include "logging.h"
 #include "config.h"
-#include "chipID.h"
+#include "Logging/logging.h"
+#include "ChipID/chipID.h"
 #include "mqtt.h"
-#include "radio.h"
-#include "ledControl.h"
 #include "haDiscovery.h"
+#include "RF/radio.h"
+#include "Output/ledControl.h"
 
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -325,6 +325,11 @@ bool getMqttEnabled()
 {
     bool enabled = (strlen(mqttSettings.server) > 0 && mqttSettings.port > 0);
     return enabled;
+}
+
+bool getMQTTConnected()
+{
+    return (mqttClient.connected());
 }
 
 static void saveMqttSettings()

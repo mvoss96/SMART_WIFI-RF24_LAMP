@@ -1,8 +1,7 @@
-
-#include "haDiscovery.h"
-#include "logging.h"
-#include "chipID.h"
 #include "config.h"
+#include "haDiscovery.h"
+#include "Logging/logging.h"
+#include "ChipID/chipID.h"
 
 #include <ArduinoJson.h>
 #include <sstream>

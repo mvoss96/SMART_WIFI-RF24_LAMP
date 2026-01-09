@@ -1,9 +1,11 @@
-#include "chipID.h"
 #include "config.h"
+
 #include "network.h"
 #include "mqtt.h"
-#include "radio.h"
-#include "logging.h"
+#include "RF/radio.h"
+#include "Logging/logging.h"
+#include "ChipID/chipID.h"
+#include "Output/ioControl.h"
 
 #include <Arduino.h>
 #include <WiFiManager.h>
@@ -60,12 +62,12 @@ void saveParamsCallback()
 #ifdef RF24RADIO_ENABLED
     setRadioSettings(atoi(customRadioChannel.getValue()), customRadioAddress.getValue());
 #endif
-    //wifiManager.setTitle(getDeviceName());
+    // wifiManager.setTitle(getDeviceName());
     delay(100);
     ESP.restart(); // Restart the device to apply the new settings
 }
 
-void wifiInit()
+void networkInit()
 {
     const char *chipID = ChipID::getChipID();
     WiFi.hostname(chipID);
@@ -174,11 +176,33 @@ void handleWiFiConnection()
     wifiManager.process(); // Process WiFiManager tasks
 }
 
-void wifiLoop()
+void networkLoop()
 {
     handleWiFiConnection(); // Handle WiFi connectivity and reconnection
-    if (getMqttEnabled() && WiFi.status() == WL_CONNECTED)
+
+    bool wifiConnected = getNetworkConnected();
+    bool mqttEnabled = getMqttEnabled();
+    
+    if (mqttEnabled && wifiConnected)
     {
         handleMQTTConnection(); // Handle MQTT connection and publishing
     }
+
+    if (!wifiConnected)
+    {
+        statusLedSetCode(STATUS_LED_CODES::NO_WIFI);
+    }
+    else if (!getMQTTConnected())
+    {
+        statusLedSetCode(STATUS_LED_CODES::NO_MQTT);
+    }
+    else
+    {
+        statusLedSetCode(STATUS_LED_CODES::NONE);
+    }
+}
+
+bool getNetworkConnected()
+{
+    return (WiFi.status() == WL_CONNECTED);
 }

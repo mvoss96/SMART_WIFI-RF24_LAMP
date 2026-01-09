@@ -1,11 +1,11 @@
 #include "config.h"
-#ifdef RF24RADIO_ENABLED
 
+#ifdef RF24RADIO_ENABLED
 #include "radio.h"
-#include "chipID.h"
-#include "logging.h"
 #include "radioMessage.h"
-#include "ledControl.h"
+#include "Output/ledControl.h"
+#include "ChipID/chipID.h"
+#include "Logging/logging.h"
 
 #include <Arduino.h>
 #include <Preferences.h>

@@ -32,10 +32,10 @@
 #define STATUS_LED_PIN 20 // Pin for status LED
 
 // Button Configuration
-#define ENABLE_BUTTON1                           // Uncomment to enable Button1
-#define BUTTON1_PIN 10                           // Pin for Button1
-#define BUTTON1_ACTIVE_HIGH false                // Set to true if button is active high
-#define BUTTON1_BEHAVIOR BUTTON_BEHAVIOR::TOGGLE // Set the button behavior
+//#define ENABLE_BUTTON1                           // Uncomment to enable Button1
+//#define BUTTON1_PIN 10                           // Pin for Button1
+//#define BUTTON1_ACTIVE_HIGH false                // Set to true if button is active high
+//#define BUTTON1_BEHAVIOR BUTTON_BEHAVIOR::TOGGLE // Set the button behavior
 
 // RF24 Configuration
 #define RF24RADIO_ENABLED          // Uncomment to enable RF24 radio

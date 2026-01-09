@@ -1,7 +1,7 @@
-#include <WiFi.h>
 #include "chipID.h"
 #include "config.h"
-#include "logging.h"
+#include "Logging/logging.h"
+#include <WiFi.h>
 
 static char chipIdStr[32] = ""; // Inline static variable
 static char modifiedMac[13];
