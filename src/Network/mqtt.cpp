@@ -252,9 +252,9 @@ static void mqttConnect()
 
     mqttClient.setServer(mqttSettings.server, mqttSettings.port);
     mqttClient.setCallback(mqttCallback);
+    mqttClient.setBufferSize(2048); // Increase the buffer size
     if (mqttClient.connect(ChipID::getChipID(), mqttSettings.username, mqttSettings.password, (String(getDecviceTopic()) + "/status").c_str(), 1, true, "offline"))
-    {
-        mqttClient.setBufferSize(2048);                                     // Increase the buffer size
+    {                
         mqttClient.subscribe((String(getDecviceTopic()) + "/set").c_str()); // Subscribe to the set topic
         mqttClient.subscribe("homeassistant/status");                       // Subscribe to the homeassistant status topic
         setLedCallback([]()

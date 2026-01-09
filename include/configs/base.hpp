@@ -1,7 +1,15 @@
 #pragma once
 
-#define SW_VERSION "1.1.3"        // Software version
-#define LED_MAX_VAL 1024          // Maximum value for LED brightness and color (1024 for 10-bit PWM) DO NOT CHANGE
+#define SW_VERSION "1.1.3" // Software version
+#define LED_MAX_VAL 1024   // Maximum value for LED brightness and color (1024 for 10-bit PWM) DO NOT CHANGE
+
+// WiFi Configuration
+#define WIFI_RECONNECT_ATTEMPT_INTERVAL 2000 // Interval between WiFi reconnection attempts in milliseconds
+
+// MQTT Configuration
+#define MQTT_MIN_DELAY 50                    // Minimum delay between MQTT messages in milliseconds
+#define MQTT_PUBLISH_INTERVAL 5000           // Interval between MQTT publishes in milliseconds (-1 for no interval)
+#define MQTT_RECONNECT_ATTEMPT_INTERVAL 5000 // Interval between MQTT reconnection attempts in milliseconds
 
 enum class LED_MODES
 {

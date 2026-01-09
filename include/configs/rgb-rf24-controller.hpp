@@ -4,14 +4,6 @@
 // Model Configuration
 #define MODELNAME "SMART-WIFI-RF24-Lamp" // Model name used as default device name
 
-// WiFi Configuration
-#define WIFI_RECONNECT_ATTEMPT_INTERVAL 2000 // Interval between WiFi reconnection attempts in milliseconds
-
-// MQTT Configuration
-#define MQTT_MIN_DELAY 500                   // Minimum delay between MQTT messages in milliseconds
-#define MQTT_PUBLISH_INTERVAL -1             // Interval between MQTT publishes in milliseconds (-1 for no interval)
-#define MQTT_RECONNECT_ATTEMPT_INTERVAL 5000 // Interval between MQTT reconnection attempts in milliseconds
-
 // Output LED Configuration
 #define LED_MODE LED_MODES::CCT               // Set the LED mode
 #define LED_PWM_FREQUENCY 30000               // Frequency for LED PWM Control
@@ -32,10 +24,10 @@
 #define STATUS_LED_PIN 20 // Pin for status LED
 
 // Button Configuration
-//#define ENABLE_BUTTON1                           // Uncomment to enable Button1
-//#define BUTTON1_PIN 10                           // Pin for Button1
-//#define BUTTON1_ACTIVE_HIGH false                // Set to true if button is active high
-//#define BUTTON1_BEHAVIOR BUTTON_BEHAVIOR::TOGGLE // Set the button behavior
+// #define ENABLE_BUTTON1                           // Uncomment to enable Button1
+// #define BUTTON1_PIN 10                           // Pin for Button1
+// #define BUTTON1_ACTIVE_HIGH false                // Set to true if button is active high
+// #define BUTTON1_BEHAVIOR BUTTON_BEHAVIOR::TOGGLE // Set the button behavior
 
 // RF24 Configuration
 #define RF24RADIO_ENABLED          // Uncomment to enable RF24 radio
