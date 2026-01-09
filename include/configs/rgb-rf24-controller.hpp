@@ -6,6 +6,7 @@
 
 // Output LED Configuration
 #define LED_MODE LED_MODES::CCT               // Set the LED mode
+#define DEFAULT_TRANSITION_TIME 250           // Default transition time in milliseconds
 #define LED_PWM_FREQUENCY 30000               // Frequency for LED PWM Control
 #define BRIGHTNESS_STEP_SIZE LED_MAX_VAL / 16 // Number of brightness steps
 #define COLOR_STEP_SIZE LED_MAX_VAL / 16      // Number of color steps

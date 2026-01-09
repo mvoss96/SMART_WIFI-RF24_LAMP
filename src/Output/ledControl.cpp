@@ -16,7 +16,19 @@ static uint32_t ledcCurrentValues[numLEDs] = {0};
 // Callback function pointer for LED state change
 static void (*ledCallback)(void) = NULL;
 
-LEDSettings ledSettings;
+static LEDSettings ledSettings;
+static uint32_t remainingTransitionTime = 0;
+
+// Helper function to validate and clamp value
+static uint16_t validateLedValue(uint16_t value, const char* name)
+{
+    if (value > LED_MAX_VAL)
+    {
+        LOG_WARNING("%s value %i is greater than maximum value %i, setting to maximum value\n", name, value, LED_MAX_VAL);
+        return LED_MAX_VAL;
+    }
+    return value;
+}
 
 IRAM_ATTR void setLedCallback(void (*callback)(void))
 {
@@ -71,33 +83,80 @@ void ledInit()
 
 void ledUpdate()
 {
-    const int fadeStep = LED_FADE_STEP_SIZE;
+    static unsigned long lastUpdateTime = 0;
+    
+    unsigned long currentTime = millis();
+    uint32_t elapsedTime = currentTime - lastUpdateTime;
+    
+    // Skip if called too quickly (no time elapsed)
+    if (elapsedTime == 0)
+    {
+        return;
+    }
+    
+    lastUpdateTime = currentTime;
+
+    // Update remaining transition time
+    if (remainingTransitionTime > 0)
+    {
+        if (elapsedTime >= remainingTransitionTime)
+        {
+            remainingTransitionTime = 0;
+        }
+        else
+        {
+            remainingTransitionTime -= elapsedTime;
+        }
+    }
+
+    // Process each LED individually
     for (int i = 0; i < numLEDs; i++)
     {
-        int delta = ledcTargetValues[i] - ledcCurrentValues[i];
+        int32_t delta = ledcTargetValues[i] - ledcCurrentValues[i];
         if (delta == 0)
         {
             continue; // Skip if no change needed
         }
-        // Serial.printf("Current:%i, Target:%i, Delta: %i ", ledcCurrentValues[i], ledcTargetValues[i], delta);
 
-        // Adjust the new value by the fadeStep in the direction of the delta using the ternary operator
-        int step = (delta > 0) ? min(fadeStep, delta) : max(-fadeStep, delta);
-        uint32_t newVal = ledcCurrentValues[i] + step;
-        // Serial.printf("NewVal: %i\n", newVal);
-        ledcCurrentValues[i] = newVal;
-        //LOG_INFO("LED %i: %i\n", i, newVal);
-        ledcWrite(pins[i], newVal);
+        int32_t step;
+        
+        if (remainingTransitionTime > 0)
+        {
+            // Calculate step size based on: (delta / remainingTime) * elapsedTime
+            // This ensures smooth transition that completes in the remaining time
+            step = (delta * (int32_t)elapsedTime) / (int32_t)remainingTransitionTime;
+            
+            // Ensure we make at least some progress (integer division might result in 0)
+            if (step == 0)
+            {
+                step = (delta > 0) ? 1 : -1;
+            }
+        }
+        else
+        {
+            // No transition time set, jump directly to target
+            step = delta;
+        }
+        
+        // Ensure we don't overshoot the target
+        if (abs(step) > abs(delta))
+        {
+            step = delta;
+        }
+
+        ledcCurrentValues[i] += step;
+        ledcWrite(pins[i], ledcCurrentValues[i]);
     }
 }
 
-int ledSet()
+int ledSet(uint32_t transitionTime)
 {
     const uint16_t divider = 65535; // max for uint16_t
     uint16_t warmWhite, coldWhite;
     uint8_t channels[] = {0, 1, 2, 3, 4};
     uint16_t colors[] = {ledSettings.red, ledSettings.green, ledSettings.blue, ledSettings.ww, ledSettings.cw};
     uint8_t channelCount;
+    remainingTransitionTime = transitionTime;
 
     switch (LED_MODE)
     {
@@ -133,10 +192,10 @@ int ledSet()
     return 0;
 }
 
-void setLedPower(bool power)
+void setLedPower(bool power, uint32_t transitionTimeMs)
 {
     ledSettings.power = power;
-    ledSet();
+    ledSet(transitionTimeMs);
 }
 
 bool getLedPower()
@@ -146,8 +205,7 @@ bool getLedPower()
 
 bool toggleLedPower()
 {
-    ledSettings.power = !ledSettings.power;
-    ledSet();
+    setLedPower(!ledSettings.power);
     return ledSettings.power;
 }
 
@@ -156,15 +214,10 @@ uint16_t getLedBrightness()
     return ledSettings.brightness;
 }
 
-void setLedBrightness(uint16_t brightness)
+void setLedBrightness(uint16_t brightness, uint32_t transitionTimeMs)
 {
-    if (brightness > LED_MAX_VAL)
-    {
-        LOG_WARNING("Brightness value %i is greater than maximum value %i, setting to maximum value\n", brightness, LED_MAX_VAL);
-        brightness = LED_MAX_VAL;
-    }
-    ledSettings.brightness = brightness;
-    ledSet();
+    ledSettings.brightness = validateLedValue(brightness, "Brightness");
+    ledSet(transitionTimeMs);
 }
 
 void increaseLedBrightness()
@@ -196,20 +249,15 @@ uint16_t getLedColorTemperature()
     return (uint16_t)(0.5 + (float)(ledSettings.color) * (MAX_MIREDS - MIN_MIREDS) / LED_MAX_VAL + MIN_MIREDS);
 }
 
-void setLedColorTemperature(uint16_t mireds)
+void setLedColorTemperature(uint16_t mireds, uint32_t transitionTimeMs)
 {
-    setLedColor((uint16_t)(0.5 + (float)(mireds - MIN_MIREDS) * LED_MAX_VAL / (MAX_MIREDS - MIN_MIREDS)));
+    setLedColor((uint16_t)(0.5 + (float)(mireds - MIN_MIREDS) * LED_MAX_VAL / (MAX_MIREDS - MIN_MIREDS)), transitionTimeMs);
 }
 
-void setLedColor(uint16_t color)
+void setLedColor(uint16_t color, uint32_t transitionTimeMs)
 {
-    if (color > LED_MAX_VAL)
-    {
-        LOG_WARNING("Color value %i is greater than maximum value %i, setting to maximum value\n", color, LED_MAX_VAL);
-        color = LED_MAX_VAL;
-    }
-    ledSettings.color = color;
-    ledSet();
+    ledSettings.color = validateLedValue(color, "Color");
+    ledSet(transitionTimeMs);
 }
 
 void increaseLedColor()
@@ -227,15 +275,10 @@ uint16_t getLedRed()
     return ledSettings.red;
 }
 
-void setLedRed(uint16_t red)
+void setLedRed(uint16_t red, uint32_t transitionTimeMs)
 {
-    if (red > LED_MAX_VAL)
-    {
-        LOG_WARNING("Red value %i is greater than maximum value %i, setting to maximum value\n", red, LED_MAX_VAL);
-        red = LED_MAX_VAL;
-    }
-    ledSettings.red = red;
-    ledSet();
+    ledSettings.red = validateLedValue(red, "Red");
+    ledSet(transitionTimeMs);
 }
 
 void increaseLedRed()
@@ -253,15 +296,10 @@ uint16_t getLedGreen()
     return ledSettings.green;
 }
 
-void setLedGreen(uint16_t green)
+void setLedGreen(uint16_t green, uint32_t transitionTimeMs)
 {
-    if (green > LED_MAX_VAL)
-    {
-        LOG_WARNING("Green value %i is greater than maximum value %i, setting to maximum value\n", green, LED_MAX_VAL);
-        green = LED_MAX_VAL;
-    }
-    ledSettings.green = green;
-    ledSet();
+    ledSettings.green = validateLedValue(green, "Green");
+    ledSet(transitionTimeMs);
 }
 
 void increaseLedGreen()
@@ -279,15 +317,10 @@ uint16_t getLedBlue()
     return ledSettings.blue;
 }
 
-void setLedBlue(uint16_t blue)
+void setLedBlue(uint16_t blue, uint32_t transitionTimeMs)
 {
-    if (blue > LED_MAX_VAL)
-    {
-        LOG_WARNING("Blue value %i is greater than maximum value %i, setting to maximum value\n", blue, LED_MAX_VAL);
-        blue = LED_MAX_VAL;
-    }
-    ledSettings.blue = blue;
-    ledSet();
+    ledSettings.blue = validateLedValue(blue, "Blue");
+    ledSet(transitionTimeMs);
 }
 
 void increaseLedBlue()
@@ -305,15 +338,10 @@ uint16_t getLedWW()
     return ledSettings.ww;
 }
 
-void setLedWW(uint16_t ww)
+void setLedWW(uint16_t ww, uint32_t transitionTimeMs)
 {
-    if (ww > LED_MAX_VAL)
-    {
-        LOG_WARNING("WW value %i is greater than maximum value %i, setting to maximum value\n", ww, LED_MAX_VAL);
-        ww = LED_MAX_VAL;
-    }
-    ledSettings.ww = ww;
-    ledSet();
+    ledSettings.ww = validateLedValue(ww, "WW");
+    ledSet(transitionTimeMs);
 }
 
 void increaseLedWW()
@@ -331,15 +359,10 @@ uint16_t getLedCW()
     return ledSettings.cw;
 }
 
-void setLedCW(uint16_t cw)
+void setLedCW(uint16_t cw, uint32_t transitionTimeMs)
 {
-    if (cw > LED_MAX_VAL)
-    {
-        LOG_WARNING("CW value %i is greater than maximum value %i, setting to maximum value\n", cw, LED_MAX_VAL);
-        cw = LED_MAX_VAL;
-    }
-    ledSettings.cw = cw;
-    ledSet();
+    ledSettings.cw = validateLedValue(cw, "CW");
+    ledSet(transitionTimeMs);
 }
 
 void increaseLedCW()
@@ -352,24 +375,29 @@ void decreaseLedCW()
     setLedCW(max(ledSettings.cw - COLOR_STEP_SIZE, 0));
 }
 
-void setLedRgb(uint16_t red, uint16_t green, uint16_t blue)
+void setLedRgb(uint16_t red, uint16_t green, uint16_t blue, uint32_t transitionTimeMs)
 {
-    setLedRed(red);
-    setLedGreen(green);
-    setLedBlue(blue);
-    ledSet();
+    ledSettings.red = validateLedValue(red, "Red");
+    ledSettings.green = validateLedValue(green, "Green");
+    ledSettings.blue = validateLedValue(blue, "Blue");
+    ledSet(transitionTimeMs);
 }
 
-void setLedRgbw(uint16_t red, uint16_t green, uint16_t blue, uint16_t ww)
+void setLedRgbw(uint16_t red, uint16_t green, uint16_t blue, uint16_t ww, uint32_t transitionTimeMs)
 {
-    setLedRgb(red, green, blue);
-    setLedWW(ww);
-    ledSet();
+    ledSettings.red = validateLedValue(red, "Red");
+    ledSettings.green = validateLedValue(green, "Green");
+    ledSettings.blue = validateLedValue(blue, "Blue");
+    ledSettings.ww = validateLedValue(ww, "WW");
+    ledSet(transitionTimeMs);
 }
 
-void setLedRgbww(uint16_t red, uint16_t green, uint16_t blue, uint16_t ww, uint16_t cw)
+void setLedRgbww(uint16_t red, uint16_t green, uint16_t blue, uint16_t ww, uint16_t cw, uint32_t transitionTimeMs)
 {
-    setLedRgbw(red, green, blue, ww);
-    setLedCW(cw);
-    ledSet();
+    ledSettings.red = validateLedValue(red, "Red");
+    ledSettings.green = validateLedValue(green, "Green");
+    ledSettings.blue = validateLedValue(blue, "Blue");
+    ledSettings.ww = validateLedValue(ww, "WW");
+    ledSettings.cw = validateLedValue(cw, "CW");
+    ledSet(transitionTimeMs);
 }

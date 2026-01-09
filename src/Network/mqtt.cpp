@@ -213,31 +213,49 @@ IRAM_ATTR static void mqttCallback(char *topic, byte *payload, unsigned int leng
         LOG_ERROR("deserializeJson() failed: %s\n", error.c_str());
         return;
     }
+    
+    // Read transition time (in seconds) and convert to milliseconds
+    uint32_t transitionTimeMs = DEFAULT_TRANSITION_TIME;
+    if (doc["transition"].is<float>())
+    {
+        float transitionSec = doc["transition"];
+        if (transitionSec >= 0.0f)
+        {
+            transitionTimeMs = (uint32_t)(transitionSec * 1000.0f);
+        }
+        else
+        {
+            LOG_WARNING("Invalid transition value (negative): %f, using default\n", transitionSec);
+        }
+    }
+    
     if (doc["state"].is<const char *>())
     {
         const char *state = doc["state"];
         if (strcasecmp(state, "ON") == 0)
         {
-            setLedPower(true);
+            setLedPower(true, transitionTimeMs);
         }
         else if (strcasecmp(state, "OFF") == 0)
         {
-            setLedPower(false);
+            setLedPower(false, transitionTimeMs);
         }
         else
         {
             LOG_WARNING("Invalid state value: %s\n", state);
         }
     }
+
     if (doc["brightness"].is<uint16_t>())
     {
         uint16_t brightness = doc["brightness"];
-        setLedBrightness(brightness);
+        setLedBrightness(brightness, transitionTimeMs);
     }
+    
     if (LED_MODE == LED_MODES::CCT && doc["color_temp"].is<uint16_t>())
     {
         uint16_t color_temp = doc["color_temp"];
-        setLedColorTemperature(color_temp);
+        setLedColorTemperature(color_temp, transitionTimeMs);
     }
 }
 
